@@ -20,9 +20,16 @@ alsa_device = "default"
 # Radio stroom
 
 radio =
-  input.http(
-    self_sync=false,
-    radio_url
+  on_track(
+    fun (_) ->
+      ignore(process.run(
+        "echo STREAM > /opt/radio-orania/status/current_mode"
+      ))
+    end,
+    input.http(
+      self_sync=false,
+      radio_url
+    )
   )
 
 # Musiek
@@ -49,19 +56,26 @@ sweepers =
 # Backup program
 
 backup_program =
-  mksafe(
-    rotate(
-      weights=[
-        music_weight,
-        sweeper_weight
-      ],
-      [
-        emergency_music,
-        sweepers
-      ]
+  on_track(
+    fun (_) ->
+      ignore(process.run(
+        "echo BACKUP > /opt/radio-orania/status/current_mode"
+      ))
+    end,
+    mksafe(
+      rotate(
+        weights=[
+          music_weight,
+          sweeper_weight
+        ],
+        [
+          emergency_music,
+          sweepers
+        ]
+      )
     )
   )
-
+  
 # Hoof bron
 
 main =

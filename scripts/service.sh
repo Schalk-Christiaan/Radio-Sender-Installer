@@ -20,4 +20,8 @@ progress 80 "Aktiveer diens"
 
 systemctl enable radio-orania.service
 
+progress 90 "Begin diens"
+
+systemctl restart radio-orania.service
+
 progress 100 "Klaar"
