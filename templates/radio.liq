@@ -2,9 +2,9 @@
 
 radio_url = "__STREAM_URL__"
 
-music_folder = "/opt/radio-orania/emergency/Musiek"
+music_folder = "/opt/radio-orania/media/Musiek"
 
-sweeper_folder = "/opt/radio-orania/emergency/Sweepers"
+sweeper_folder = "/opt/radio-orania/media/Sweepers"
 
 music_weight = __MUSIC_WEIGHT__
 sweeper_weight = __SWEEPER_WEIGHT__
@@ -14,7 +14,9 @@ playlist_prefetch = __PLAYLIST_PREFETCH__
 
 alsa_device = "__ALSA_DEVICE__"
 
-# Radio.co stroom
+log.stdout()
+
+# Radio stroom
 
 radio =
   mksafe(
@@ -24,8 +26,7 @@ radio =
     )
   )
 
-
-# Noodmusiek
+# Musiek
 
 emergency_music =
   playlist(
@@ -37,7 +38,6 @@ emergency_music =
     music_folder
   )
 
-
 # Sweepers
 
 sweepers =
@@ -47,22 +47,19 @@ sweepers =
     sweeper_folder
   )
 
-
 # Backup program
 
 backup_program =
   rotate(
-   weights=[
-     music_weight,
-     sweeper_weight
-   ],
-   [
-     emergency_music,
-     sweepers
-   ]
- )
-
-
+    weights=[
+      music_weight,
+      sweeper_weight
+    ],
+    [
+      emergency_music,
+      sweepers
+    ]
+  )
 
 # Hoof bron
 
@@ -75,8 +72,7 @@ main =
     ]
   )
 
-
-# Klank uitset
+# ALSA uitset
 
 output.alsa(
   device=alsa_device,

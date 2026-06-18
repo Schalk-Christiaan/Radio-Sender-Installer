@@ -1,11 +1,16 @@
 #!/bin/bash
 
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$SCRIPT_DIR/progress.sh"
+source "$SCRIPT_DIR/../config/environment.conf"
+
 echo
 echo "==================="
 echo "Valideer stelsel..."
 echo "==================="
-
-source config/environment.conf
 
 ERRORS=0
 WARNINGS=0
@@ -30,7 +35,9 @@ echo
 # Config
 #
 
-if [ -f config/environment.conf ]; then
+progress 10 "Konfigurasie"
+
+if [ -f "$SCRIPT_DIR/../config/environment.conf" ]; then
     ok "environment.conf gevind"
 else
     fail "environment.conf ontbreek"
@@ -40,6 +47,8 @@ fi
 # Liquidsoap
 #
 
+progress 25 "Liquidsoap"
+
 if command -v liquidsoap >/dev/null 2>&1; then
     VERSION=$(liquidsoap --version | head -n1)
     ok "Liquidsoap: $VERSION"
@@ -47,19 +56,11 @@ else
     fail "Liquidsoap nie geïnstalleer nie"
 fi
 
-#
-# radio.liq
-#
-
 if [ -f /opt/radio-orania/liquidsoap/radio.liq ]; then
     ok "radio.liq gevind"
 else
     fail "radio.liq ontbreek"
 fi
-
-#
-# Liquidsoap sintaks
-#
 
 if liquidsoap --check /opt/radio-orania/liquidsoap/radio.liq >/dev/null 2>&1; then
     ok "radio.liq sintaks geldig"
@@ -68,18 +69,16 @@ else
 fi
 
 #
-# Internet
+# Netwerk
 #
+
+progress 40 "Netwerk"
 
 if ping -c1 -W2 1.1.1.1 >/dev/null 2>&1; then
     ok "Internet verbinding"
 else
     warn "Geen internet verbinding"
 fi
-
-#
-# Stream URL
-#
 
 if curl -Is --max-time 10 "$STREAM_URL" >/dev/null 2>&1; then
     ok "Stream URL bereikbaar"
@@ -88,30 +87,30 @@ else
 fi
 
 #
-# Noodmusiek
+# Media
 #
 
-if find /opt/radio-orania/emergency/Musiek -type f 2>/dev/null | grep -q .; then
-    COUNT=$(find /opt/radio-orania/emergency/Musiek -type f | wc -l)
-    ok "Noodmusiek gevind ($COUNT lêers)"
+progress 60 "Media"
+
+if find /opt/radio-orania/media/Musiek -type f 2>/dev/null | grep -q .; then
+    COUNT=$(find /opt/radio-orania/media/Musiek -type f | wc -l)
+    ok "Musiek gevind ($COUNT lêers)"
 else
-    warn "Geen noodmusiek gevind nie"
+    warn "Geen musiek gevind nie"
 fi
 
-#
-# Sweepers
-#
-
-if find /opt/radio-orania/emergency/Sweepers -type f 2>/dev/null | grep -q .; then
-    COUNT=$(find /opt/radio-orania/emergency/Sweepers -type f | wc -l)
+if find /opt/radio-orania/media/Sweepers -type f 2>/dev/null | grep -q .; then
+    COUNT=$(find /opt/radio-orania/media/Sweepers -type f | wc -l)
     ok "Sweepers gevind ($COUNT lêers)"
 else
     warn "Geen sweepers gevind nie"
 fi
 
 #
-# ALSA toestel
+# ALSA
 #
+
+progress 80 "ALSA"
 
 if command -v aplay >/dev/null 2>&1; then
 
@@ -129,6 +128,8 @@ fi
 # Service
 #
 
+progress 90 "Dienste"
+
 if systemctl list-unit-files | grep -q radio-orania.service; then
     ok "radio-orania.service geïnstalleer"
 else
@@ -142,6 +143,36 @@ else
 fi
 
 #
+# Heartbeat
+#
+
+if [ -n "$HEARTBEAT_URL" ]; then
+    ok "Heartbeat URL ingestel"
+else
+    warn "Heartbeat URL nie ingestel nie"
+fi
+
+#
+# File Browser
+#
+
+if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
+
+    if command -v filebrowser >/dev/null 2>&1; then
+        ok "File Browser geïnstalleer"
+    else
+        fail "File Browser ontbreek"
+    fi
+
+    if systemctl list-unit-files | grep -q filebrowser.service; then
+        ok "File Browser diens gevind"
+    else
+        warn "File Browser diens ontbreek"
+    fi
+
+fi
+
+#
 # Skyfspasie
 #
 
@@ -149,18 +180,25 @@ FREE=$(df -BG / | awk 'NR==2 {print $4}')
 
 ok "Beskikbare skyfspasie: $FREE"
 
+progress 100 "Voltooi"
+
 echo
 echo "==================="
 
 if [ "$ERRORS" -gt 0 ]; then
+
     echo "RESULTAAT: MISLUK"
     echo "$ERRORS fout(e), $WARNINGS waarskuwing(s)"
     echo "==================="
+
     exit 1
+
 else
+
     echo "RESULTAAT: GESLAAG"
     echo "$WARNINGS waarskuwing(s)"
     echo "==================="
+
 fi
 
 echo
