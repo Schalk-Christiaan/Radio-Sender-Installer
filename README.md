@@ -1,8 +1,25 @@
-# Radio Sender Installer
+# Radio Orania Sender Installer
 
-'n Eenvoudige installer vir 'n Linux-gebaseerde radiosender wat 'n internetstroom speel en outomaties na noodmusiek oorskakel wanneer die stroom wegval.
+'n Eenvoudige Debian-gebaseerde installer vir afgeleë radiosenders.
 
-## Werking van die Stelsel
+## Doel
+
+Hierdie projek installeer en konfigureer 'n volledige Radio Orania sender op Debian 13.
+
+Die sender speel 'n internetstroom af en skakel outomaties oor na noodmusiek indien die stroom wegval.
+
+## Funksies
+
+* Liquidsoap radiosender
+* Outomatiese stroom-monitering
+* Noodmusiek en sweepers
+* ALSA klankuitset
+* Systemd dienste
+* Heartbeat ondersteuning
+* File Browser vir media bestuur
+* Outomatiese installasie en validasie
+
+## Hoe dit werk
 
 ```text
 Internet Stroom
@@ -10,80 +27,90 @@ Internet Stroom
        ▼
   Liquidsoap
        │
-       ├── Stroom beskikbaar ──► ALSA Uitset
+       ├─ Stroom beskikbaar
+       │        │
+       │        ▼
+       │      ALSA
        │
-       └── Stroom af
+       └─ Stroom af
                 │
                 ▼
-        Musiek + Sweepers
+      Musiek + Sweepers
                 │
                 ▼
-           ALSA Uitset
-                │
-                ▼
-         Klankkaart / Sender
+              ALSA
 ```
 
-## Wat die Installer Doen
+## Media Bestuur
+
+Media word bestuur deur File Browser:
 
 ```text
-Begin
- │
- ▼
-Vra vir Konfigurasie
- │
- ▼
-Installeer Afhanklikhede
- │
- ▼
-Skep Vouers
- │
- ▼
-Bou Liquidsoap Konfigurasie
- │
- ▼
-Registreer Dienste
- │
- ▼
-Valideer Installasie
- │
- ▼
-Gereed
+/opt/radio-orania/media
+├── Musiek
+└── Sweepers
 ```
 
-## Vouerstruktuur
+## Installasie
+
+Kloon die repository:
+
+```bash
+git clone https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git
+```
+
+Gaan na die projek gids:
+
+```bash
+cd Radio-Sender-Installer
+```
+
+Begin die installer:
+
+```bash
+sudo bash install.sh
+```
+
+Die installer sal jou vra vir:
+
+* Sender naam
+* Stroom URL
+* ALSA toestel
+* Musiek gewig
+* Sweeper gewig
+* Heartbeat URL (opsioneel)
+* File Browser instellings
+
+Na installasie sal die stelsel outomaties:
+
+* Liquidsoap konfigureer
+* Systemd dienste registreer
+* Media gidse skep
+* File Browser opstel
+* Die installasie valideer
+
+## Gids Struktuur
 
 ```text
 /opt/radio-orania
 ├── config
 ├── liquidsoap
 ├── logs
-├── emergency
-│   ├── Musiek
-│   └── Sweepers
-└── monitoring
+├── monitoring
+├── filebrowser
+└── media
+    ├── Musiek
+    └── Sweepers
 ```
 
-## Installasie
+## Projek Status
 
-```bash
-curl -O https://raw.githubusercontent.com/Schalk-Christiaan/Radio-Sender-Installer/main/install.sh
-sudo bash install.sh
-```
+Aktief ontwikkel vir Radio Orania.
 
-## Kenmerke
+Fokus:
 
-* Liquidsoap-gebaseerde afspeelstelsel
-* Outomatiese noodmusiek
-* ALSA klankuitset
-* Systemd diens
-* Heartbeat monitering
-* Uptime Kuma ondersteuning
-* Interaktiewe installasie
-
-## Toekoms
-
-* Musiekpakkette vanaf GitHub
-* Proxy ondersteuning
-* Outomatiese opdaterings
-* Verskeie senderprofiele
+* Betroubaarheid
+* Eenvoud
+* Maklike ontplooiing
+* Min handmatige konfigurasie
+* Volledig oopbron
