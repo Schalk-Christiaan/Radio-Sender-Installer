@@ -26,7 +26,7 @@ run_step() {
     if [ "$VERBOSE" = true ]; then
         bash "$2" | tee -a "$LOG_FILE"
     else
-        bash "$2" >> "$LOG_FILE" 2>&1
+        bash "$2" 2>>"$LOG_FILE"
     fi
 }
 
