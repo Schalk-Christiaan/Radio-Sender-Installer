@@ -1,29 +1,28 @@
 # Instellings
 
-radio_url = "__STREAM_URL__"
+settings.init.allow_root := true
+
+radio_url = "https://stream.radio.co/s7adaa782c/listen"
 
 music_folder = "/opt/radio-orania/media/Musiek"
 
 sweeper_folder = "/opt/radio-orania/media/Sweepers"
 
-music_weight = __MUSIC_WEIGHT__
-sweeper_weight = __SWEEPER_WEIGHT__
+music_weight = 4
+sweeper_weight = 1
 
-playlist_reload = __PLAYLIST_RELOAD__
-playlist_prefetch = __PLAYLIST_PREFETCH__
+playlist_reload = 1000
+playlist_prefetch = 10
 
-alsa_device = "__ALSA_DEVICE__"
+alsa_device = "default"
 
-log.stdout()
 
 # Radio stroom
 
 radio =
-  mksafe(
-    input.http(
-      self_sync=false,
-      radio_url
-    )
+  input.http(
+    self_sync=false,
+    radio_url
   )
 
 # Musiek
@@ -50,26 +49,30 @@ sweepers =
 # Backup program
 
 backup_program =
-  rotate(
-    weights=[
-      music_weight,
-      sweeper_weight
-    ],
-    [
-      emergency_music,
-      sweepers
-    ]
+  mksafe(
+    rotate(
+      weights=[
+        music_weight,
+        sweeper_weight
+      ],
+      [
+        emergency_music,
+        sweepers
+      ]
+    )
   )
 
 # Hoof bron
 
 main =
-  fallback(
-    track_sensitive=false,
-    [
-      radio,
-      backup_program
-    ]
+  mksafe(
+    fallback(
+      track_sensitive=false,
+      [
+        radio,
+        backup_program
+      ]
+    )
   )
 
 # ALSA uitset
