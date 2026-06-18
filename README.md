@@ -21,24 +21,34 @@ Die sender speel 'n internetstroom af en skakel outomaties oor na noodmusiek ind
 
 ## Hoe dit werk
 
+Die sender monitor voortdurend 'n internetstroom.
+
+Wanneer die stroom beskikbaar is, word dit direk na die klankkaart gestuur. Indien die stroom wegval, skakel die stelsel outomaties oor na plaaslike noodmusiek en sweepers totdat die stroom herstel.
+
 ```text
-Internet Stroom
-       │
-       ▼
-  Liquidsoap
-       │
-       ├─ Stroom beskikbaar
-       │        │
-       │        ▼
-       │      ALSA
-       │
-       └─ Stroom af
-                │
-                ▼
-      Musiek + Sweepers
-                │
-                ▼
-              ALSA
+                    Internet Stroom
+                           │
+                           ▼
+                      Liquidsoap
+                           │
+            ┌──────────────┴──────────────┐
+            │                             │
+            ▼                             ▼
+     Stroom beskikbaar             Stroom af
+            │                             │
+            ▼                             ▼
+      Direkte stroom            Musiek + Sweepers
+            │                             │
+            └──────────────┬──────────────┘
+                           │
+                           ▼
+                        ALSA
+                           │
+                           ▼
+                       Klankkaart
+                           │
+                           ▼
+                     FM Sender / Uitsending
 ```
 
 ## Media Bestuur
