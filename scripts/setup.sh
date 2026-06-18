@@ -109,16 +109,28 @@ read -rp "Heartbeat URL (opsioneel): " HEARTBEAT_URL
 # File Browser
 #
 
-echo
-
 read -rp "Installeer File Browser? (Y/N) [Y]: " FB
 
-if [[ "$FB" =~ ^[Nn]$ ]]; then
-    INSTALL_FILEBROWSER="no"
-else
-    INSTALL_FILEBROWSER="yes"
-fi
+if [[ ! "$FB" =~ ^[Nn]$ ]]; then
 
+    INSTALL_FILEBROWSER="yes"
+
+    echo
+
+    read -rp "File Browser Adres [127.0.0.1]: " FILEBROWSER_ADDRESS
+    FILEBROWSER_ADDRESS=${FILEBROWSER_ADDRESS:-127.0.0.1}
+
+    read -rp "File Browser Poort [8081]: " FILEBROWSER_PORT
+    FILEBROWSER_PORT=${FILEBROWSER_PORT:-8081}
+
+else
+
+    INSTALL_FILEBROWSER="no"
+
+    FILEBROWSER_ADDRESS="127.0.0.1"
+    FILEBROWSER_PORT="8081"
+
+fi
 #
 # Opsomming
 #
@@ -143,6 +155,8 @@ fi
 
 if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
     echo "File Browser     : Ja"
+    echo "FB Adres         : $FILEBROWSER_ADDRESS"
+    echo "FB Poort         : $FILEBROWSER_PORT"
 else
     echo "File Browser     : Nee"
 fi
@@ -190,6 +204,9 @@ PLAYLIST_PREFETCH="$PLAYLIST_PREFETCH"
 HEARTBEAT_URL="$HEARTBEAT_URL"
 
 INSTALL_FILEBROWSER="$INSTALL_FILEBROWSER"
+
+FILEBROWSER_ADDRESS="$FILEBROWSER_ADDRESS"
+FILEBROWSER_PORT="$FILEBROWSER_PORT"
 EOF
 
 echo

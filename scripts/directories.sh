@@ -6,33 +6,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/progress.sh"
 
-if [ "$EUID" -ne 0 ]; then
-    echo "Hierdie installer moet as root loop."
-    exit 1
-fi
+BASE_DIR="/opt/radio-orania"
 
-progress 10 "Werk pakketlyste op"
+progress 10 "Skep hoofgids"
 
-apt-get update
+mkdir -p "$BASE_DIR"
 
-progress 40 "Installeer vereiste pakkette"
+progress 25 "Skep config"
 
-apt-get install -y \
-    liquidsoap \
-    ffmpeg \
-    alsa-utils \
-    curl \
-    wget \
-    nano \
-    tar \
-    ca-certificates
+mkdir -p "$BASE_DIR/config"
 
-progress 80 "Verifieer installasie"
+progress 40 "Skep Liquidsoap"
 
-command -v liquidsoap >/dev/null
-command -v ffmpeg >/dev/null
-command -v aplay >/dev/null
-command -v curl >/dev/null
-command -v wget >/dev/null
+mkdir -p "$BASE_DIR/liquidsoap"
+
+progress 55 "Skep logs"
+
+mkdir -p "$BASE_DIR/logs"
+
+progress 70 "Skep monitoring"
+
+mkdir -p "$BASE_DIR/monitoring"
+
+progress 85 "Skep media"
+
+mkdir -p "$BASE_DIR/media/Musiek"
+mkdir -p "$BASE_DIR/media/Sweepers"
+
+progress 95 "Skep File Browser"
+
+mkdir -p "$BASE_DIR/filebrowser"
 
 progress 100 "Klaar"

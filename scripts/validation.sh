@@ -15,8 +15,14 @@ echo "==================="
 ERRORS=0
 WARNINGS=0
 
+QUIET_MODE=true
+
 ok() {
-    echo "[OK] $1"
+
+    if [ "$QUIET_MODE" = false ]; then
+        echo "[OK] $1"
+    fi
+
 }
 
 warn() {
@@ -28,7 +34,6 @@ fail() {
     echo "[FOUT] $1"
     ERRORS=$((ERRORS+1))
 }
-
 echo
 
 #
@@ -168,6 +173,18 @@ if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
         ok "File Browser diens gevind"
     else
         warn "File Browser diens ontbreek"
+    fi
+
+    if systemctl is-active filebrowser >/dev/null 2>&1; then
+        ok "File Browser diens loop"
+    else
+        warn "File Browser diens loop nie"
+    fi
+
+    if ss -tln | grep -q ":$FILEBROWSER_PORT "; then
+        ok "File Browser luister op poort $FILEBROWSER_PORT"
+    else
+        warn "File Browser luister nie op poort $FILEBROWSER_PORT nie"
     fi
 
 fi

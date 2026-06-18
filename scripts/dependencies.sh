@@ -15,26 +15,26 @@ fi
 
 progress 10 "Werk pakketlyste op"
 
-apt-get update
+apt-get update -qq
 
 progress 30 "Installeer Liquidsoap"
 
-apt-get install -y liquidsoap
+apt-get install -y liquidsoap -qq
 
 progress 50 "Installeer FFmpeg"
 
-apt-get install -y ffmpeg
+apt-get install -y ffmpeg -qq
 
 progress 70 "Installeer ALSA"
 
-apt-get install -y alsa-utils
+apt-get install -y alsa-utils -qq
 
 progress 85 "Installeer hulpmiddels"
 
-apt-get install -y \
+apt-get install -y -qq \
     curl \
     wget \
-    nano
+    nano 
 
 progress 95 "Verifieer installasie"
 

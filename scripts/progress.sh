@@ -1,5 +1,3 @@
-#!/bin/bash
-
 progress() {
 
     local percent="$1"
@@ -7,21 +5,17 @@ progress() {
 
     local bars=$((percent / 5))
 
-    printf "\r   ["
+    echo
+
+    printf "   ["
 
     for ((i=0;i<20;i++)); do
-
         if [ "$i" -lt "$bars" ]; then
             printf "#"
         else
             printf "-"
         fi
-
     done
 
-    printf "] %3d%% %s" "$percent" "$message"
-
-    if [ "$percent" -eq 100 ]; then
-        echo
-    fi
+    printf "] %3d%% %s\n" "$percent" "$message"
 }
