@@ -1,29 +1,24 @@
 # Radio Orania Sender Installer
 
-'n Eenvoudige Debian-gebaseerde installer vir afgeleë radiosenders.
+'n Eenvoudige, betroubare Debian-gebaseerde radiosender met outomatiese stroom-failover, noodmusiek en web-gebaseerde media bestuur.
 
-## Doel
+---
 
-Hierdie projek installeer en konfigureer 'n volledige Radio Orania sender op Debian 13.
+## Kenmerke
 
-Die sender speel 'n internetstroom af en skakel outomaties oor na noodmusiek indien die stroom wegval.
-
-## Funksies
-
-* Liquidsoap radiosender
-* Outomatiese stroom-monitering
-* Noodmusiek en sweepers
+* Internet radiostroom afspeel
+* Outomatiese failover na noodmusiek
+* Outomatiese terugskakeling na die stroom
 * ALSA klankuitset
-* Systemd dienste
-* Heartbeat ondersteuning
+* Systemd diens
 * File Browser vir media bestuur
-* Outomatiese installasie en validasie
+* Heartbeat ondersteuning
+* Debian 13 ondersteuning
+* Eenvoudige installasie
 
-## Hoe dit werk
+---
 
-Die sender monitor voortdurend 'n internetstroom.
-
-Wanneer die stroom beskikbaar is, word dit direk na die klankkaart gestuur. Indien die stroom wegval, skakel die stelsel outomaties oor na plaaslike noodmusiek en sweepers totdat die stroom herstel.
+## Hoe dit Werk
 
 ```text
                     Internet Stroom
@@ -48,30 +43,26 @@ Wanneer die stroom beskikbaar is, word dit direk na die klankkaart gestuur. Indi
                        Klankkaart
                            │
                            ▼
-                     FM Sender / Uitsending
+                     FM Sender
 ```
 
-## Media Bestuur
+---
 
-Media word bestuur deur File Browser:
+## Vereistes
 
-```text
-/opt/radio-orania/media
-├── Musiek
-└── Sweepers
-```
+* Debian 13
+* Internetverbinding
+* ALSA-versoenbare klankkaart
+* Root toegang
+
+---
 
 ## Installasie
 
-Kloon die repository:
+Kloon die projek:
 
 ```bash
 git clone https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git
-```
-
-Gaan na die projek gids:
-
-```bash
 cd Radio-Sender-Installer
 ```
 
@@ -81,46 +72,97 @@ Begin die installer:
 sudo bash install.sh
 ```
 
-Die installer sal jou vra vir:
+Verbose modus:
 
-* Sender naam
-* Stroom URL
-* ALSA toestel
-* Musiek gewig
-* Sweeper gewig
-* Heartbeat URL (opsioneel)
-* File Browser instellings
+```bash
+sudo bash install.sh --verbose
+```
 
-Na installasie sal die stelsel outomaties:
+---
 
-* Liquidsoap konfigureer
-* Systemd dienste registreer
-* Media gidse skep
-* File Browser opstel
-* Die installasie valideer
+## Media Struktuur
 
-## Gids Struktuur
+Plaas musiek en sweepers in:
 
 ```text
-/opt/radio-orania
-├── config
-├── liquidsoap
-├── logs
-├── monitoring
-├── filebrowser
-└── media
-    ├── Musiek
-    └── Sweepers
+/opt/radio-orania/media
+├── Musiek
+└── Sweepers
 ```
+
+---
+
+## File Browser
+
+Indien geaktiveer tydens installasie kan media bestuur word deur File Browser.
+
+Die URL, gebruiker en wagwoord word gestoor in:
+
+```text
+/opt/radio-orania/filebrowser/credentials.txt
+```
+
+---
+
+## Logs
+
+Installer:
+
+```text
+installer.log
+```
+
+Radio diens:
+
+```bash
+journalctl -u radio-orania -f
+```
+
+File Browser:
+
+```text
+/opt/radio-orania/filebrowser/filebrowser.log
+```
+
+---
+
+## Verwydering
+
+Om die installasie te verwyder:
+
+```bash
+sudo bash uninstall.sh
+```
+
+Dit verwyder:
+
+* Radio Orania diens
+* File Browser diens
+* Heartbeat
+* Alle Radio Orania data
+
+---
 
 ## Projek Status
 
-Aktief ontwikkel vir Radio Orania.
+### V1.0
 
-Fokus:
+Voltooi:
 
-* Betroubaarheid
-* Eenvoud
-* Maklike ontplooiing
-* Min handmatige konfigurasie
-* Volledig oopbron
+* Installer
+* Liquidsoap integrasie
+* Outomatiese failover
+* Outomatiese herstel na stroom
+* File Browser
+* Heartbeat ondersteuning
+* Validation
+* Uninstaller
+
+### Beplan vir V1.1
+
+* Verdere hardening
+* Service Watchdog
+* File Browser Wagwoord Reset
+
+---
+
