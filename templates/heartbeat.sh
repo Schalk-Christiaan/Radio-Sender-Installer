@@ -1,8 +1,5 @@
 #!/bin/bash
 
-curl \
-  --connect-timeout 10 \
-  --max-time 20 \
-  -fsS \
-  "__HEARTBEAT_URL__" \
-  >/dev/null 2>&1
+systemctl is-active --quiet radio-orania.service || exit 1
+
+curl -fsS -o /dev/null "__HEARTBEAT_URL__"

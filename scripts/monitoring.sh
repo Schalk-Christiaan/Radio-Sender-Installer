@@ -29,10 +29,15 @@ sed -i \
 
 chmod +x /usr/local/bin/heartbeat.sh
 
-progress 75 "Skep cronjob"
+progress 75 "Installeer heartbeat diens"
 
-cat > /etc/cron.d/radio-orania-heartbeat << EOF
-* * * * * root /usr/local/bin/heartbeat.sh
-EOF
+cp \
+    "$SCRIPT_DIR/../templates/radio-heartbeat.service" \
+    /etc/systemd/system/radio-heartbeat.service
+
+systemctl daemon-reload
+
+systemctl enable radio-heartbeat.service
+systemctl restart radio-heartbeat.service
 
 progress 100 "Klaar"

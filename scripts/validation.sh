@@ -147,14 +147,42 @@ else
     warn "Service nie geaktiveer nie"
 fi
 
+if systemctl is-active radio-orania >/dev/null 2>&1; then
+    ok "Service loop"
+else
+    warn "Service loop nie"
+fi
+
 #
 # Heartbeat
 #
 
 if [ -n "$HEARTBEAT_URL" ]; then
+
     ok "Heartbeat URL ingestel"
+
+    if [ -x /usr/local/bin/heartbeat.sh ]; then
+        ok "Heartbeat script gevind"
+    else
+        warn "Heartbeat script ontbreek"
+    fi
+
+    if systemctl list-unit-files | grep -q radio-heartbeat.service; then
+        ok "Heartbeat diens geïnstalleer"
+    else
+        warn "Heartbeat diens ontbreek"
+    fi
+
+    if systemctl is-active radio-heartbeat >/dev/null 2>&1; then
+        ok "Heartbeat diens loop"
+    else
+        warn "Heartbeat diens loop nie"
+    fi
+
 else
+
     warn "Heartbeat URL nie ingestel nie"
+
 fi
 
 #
@@ -195,7 +223,7 @@ fi
 
 FREE=$(df -BG / | awk 'NR==2 {print $4}')
 
-ok "Beskikbare skyfspasie: $FREE"
+echo "Beskikbare skyfspasie: $FREE"
 
 progress 100 "Voltooi"
 

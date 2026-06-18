@@ -36,7 +36,10 @@ rm -f /etc/systemd/system/filebrowser.service
 echo
 echo ">>> Verwyder monitoring"
 
-rm -f /etc/cron.d/radio-orania-heartbeat
+systemctl stop radio-heartbeat.service 2>/dev/null || true
+systemctl disable radio-heartbeat.service 2>/dev/null || true
+
+rm -f /etc/systemd/system/radio-heartbeat.service
 rm -f /usr/local/bin/heartbeat.sh
 
 echo
