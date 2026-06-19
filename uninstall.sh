@@ -40,7 +40,6 @@ systemctl stop radio-heartbeat.service 2>/dev/null || true
 systemctl disable radio-heartbeat.service 2>/dev/null || true
 
 rm -f /etc/systemd/system/radio-heartbeat.service
-rm -f /usr/local/bin/heartbeat.sh
 
 echo
 echo ">>> Verwyder File Browser"
