@@ -1,13 +1,14 @@
 [Unit]
 Description=Radio Orania Heartbeat
 After=network-online.target radio-orania.service
+Wants=network-online.target
 
 [Service]
 Type=simple
+ExecStart=/opt/radio-orania/monitoring/heartbeat.sh
+
 Restart=always
 RestartSec=5
-
-ExecStart=/bin/bash -c 'while true; do /opt/radio-orania/monitoring/heartbeat.sh; sleep 3; done'
 
 [Install]
 WantedBy=multi-user.target
