@@ -36,5 +36,6 @@ mkdir -p "$BASE_DIR/media/Sweepers"
 progress 95 "Skep File Browser"
 
 mkdir -p "$BASE_DIR/filebrowser"
+mkdir -p "$BASE_DIR/backups"
 
 progress 100 "Klaar"

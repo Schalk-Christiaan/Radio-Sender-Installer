@@ -32,8 +32,11 @@ chmod +x /usr/local/bin/heartbeat.sh
 progress 75 "Installeer heartbeat diens"
 
 cp \
-    "$SCRIPT_DIR/../templates/radio-heartbeat.service" \
-    /etc/systemd/system/radio-heartbeat.service
+  "$SCRIPT_DIR/../templates/heartbeat.sh" \
+  /opt/radio-orania/monitoring/heartbeat.sh
+
+chmod +x \
+  /opt/radio-orania/monitoring/heartbeat.sh
 
 systemctl daemon-reload
 

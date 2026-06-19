@@ -7,7 +7,7 @@ Type=simple
 Restart=always
 RestartSec=5
 
-ExecStart=/bin/bash -c 'while true; do /usr/local/bin/heartbeat.sh; sleep 3; done'
+ExecStart=/bin/bash -c 'while true; do /opt/radio-orania/monitoring/heartbeat.sh; sleep 3; done'
 
 [Install]
 WantedBy=multi-user.target
