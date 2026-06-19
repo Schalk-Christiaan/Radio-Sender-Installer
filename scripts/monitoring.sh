@@ -25,17 +25,17 @@ progress 50 "Installeer heartbeat"
 
 mkdir -p "$BASE_DIR/monitoring"
 
-cp 
-"$SCRIPT_DIR/../templates/heartbeat.sh" 
-"$BASE_DIR/monitoring/heartbeat.sh"
+cp \
+    "$SCRIPT_DIR/../templates/heartbeat.sh" \
+    "$BASE_DIR/monitoring/heartbeat.sh"
 
 chmod +x 
 "$BASE_DIR/monitoring/heartbeat.sh"
 
 progress 75 "Installeer heartbeat diens"
 
-cp 
-"$SCRIPT_DIR/../templates/radio-heartbeat.service" 
+cp \
+"$SCRIPT_DIR/../templates/radio-heartbeat.service" \
 /etc/systemd/system/radio-heartbeat.service
 
 systemctl daemon-reload
