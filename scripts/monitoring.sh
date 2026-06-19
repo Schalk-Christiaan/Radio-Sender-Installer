@@ -29,8 +29,8 @@ cp \
     "$SCRIPT_DIR/../templates/heartbeat.sh" \
     "$BASE_DIR/monitoring/heartbeat.sh"
 
-chmod +x 
-"$BASE_DIR/monitoring/heartbeat.sh"
+chmod +x \
+    "$BASE_DIR/monitoring/heartbeat.sh"
 
 progress 75 "Installeer heartbeat diens"
 
