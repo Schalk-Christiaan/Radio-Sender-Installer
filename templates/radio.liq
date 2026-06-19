@@ -27,23 +27,18 @@ radio =
 # Musiek
 
 emergency_music =
-  playlist(
-    id="Musiek",
-    mode="randomize",
-    reload=playlist_reload,
-    reload_mode="seconds",
-    prefetch=playlist_prefetch,
-    music_folder
-  )
+playlist(
+mode="random",
+music_folder
+)
 
 # Sweepers
 
 sweepers =
-  playlist(
-    id="Sweepers",
-    mode="random",
-    sweeper_folder
-  )
+playlist(
+mode="random",
+sweeper_folder
+)
 
 # Backup program
 
