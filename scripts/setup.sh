@@ -27,9 +27,13 @@ STATION_NAME=${STATION_NAME:-$DEFAULT_STATION_NAME}
 # Stream URL
 #
 
+DEFAULT_STREAM_URL="https://stream.radio.co/s7adaa782c/listen"
+
 while true; do
 
-    read -rp "Stroom URL: " STREAM_URL
+    read -rp "Stroom URL [$DEFAULT_STREAM_URL]: " STREAM_URL
+
+    STREAM_URL=${STREAM_URL:-$DEFAULT_STREAM_URL}
 
     if [ -n "$STREAM_URL" ]; then
         break
