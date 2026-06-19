@@ -56,6 +56,7 @@ echo
 echo ">>> Herlaai systemd"
 
 systemctl daemon-reload
+systemctl reset-failed
 
 echo
 echo "=============================="

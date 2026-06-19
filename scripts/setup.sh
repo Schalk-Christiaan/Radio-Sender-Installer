@@ -176,6 +176,7 @@ fi
 #
 
 mkdir -p "$CONFIG_DIR"
+mkdir -p /opt/radio-orania/config
 
 #
 # Interne waardes
@@ -208,6 +209,10 @@ INSTALL_FILEBROWSER="$INSTALL_FILEBROWSER"
 FILEBROWSER_ADDRESS="$FILEBROWSER_ADDRESS"
 FILEBROWSER_PORT="$FILEBROWSER_PORT"
 EOF
+
+install -m 600 \
+    "$CONFIG_DIR/environment.conf" \
+    /opt/radio-orania/config/environment.conf
 
 echo
 echo "Konfigurasie geskep:"
