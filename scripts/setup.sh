@@ -121,8 +121,8 @@ if [[ ! "$FB" =~ ^[Nn]$ ]]; then
 
     echo
 
-    read -rp "File Browser Adres [127.0.0.1]: " FILEBROWSER_ADDRESS
-    FILEBROWSER_ADDRESS=${FILEBROWSER_ADDRESS:-127.0.0.1}
+    read -rp "File Browser Adres [0.0.0.0]: " FILEBROWSER_ADDRESS
+    FILEBROWSER_ADDRESS=${FILEBROWSER_ADDRESS:-0.0.0.0}
 
     read -rp "File Browser Poort [8081]: " FILEBROWSER_PORT
     FILEBROWSER_PORT=${FILEBROWSER_PORT:-8081}
@@ -131,7 +131,7 @@ else
 
     INSTALL_FILEBROWSER="no"
 
-    FILEBROWSER_ADDRESS="127.0.0.1"
+    FILEBROWSER_ADDRESS="0.0.0.0"
     FILEBROWSER_PORT="8081"
 
 fi
