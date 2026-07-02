@@ -218,6 +218,26 @@ if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
 fi
 
 #
+# Restart timer
+#
+
+if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
+
+    if systemctl list-unit-files | grep -q radio-orania-restart.timer; then
+        ok "Restart timer geïnstalleer"
+    else
+        warn "Restart timer ontbreek"
+    fi
+
+    if systemctl is-enabled radio-orania-restart.timer >/dev/null 2>&1; then
+        ok "Restart timer geaktiveer"
+    else
+        warn "Restart timer nie geaktiveer nie"
+    fi
+
+fi
+
+#
 # Skyfspasie
 #
 

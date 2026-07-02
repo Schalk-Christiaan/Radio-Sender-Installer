@@ -42,6 +42,17 @@ systemctl disable radio-heartbeat.service 2>/dev/null || true
 rm -f /etc/systemd/system/radio-heartbeat.service
 
 echo
+echo ">>> Verwyder restart timer"
+
+systemctl stop radio-orania-restart.timer 2>/dev/null || true
+systemctl disable radio-orania-restart.timer 2>/dev/null || true
+systemctl stop radio-orania-restart.service 2>/dev/null || true
+
+rm -f /etc/systemd/system/radio-orania-restart.timer
+rm -f /etc/systemd/system/radio-orania-restart.service
+rm -f /usr/local/bin/restart-radio.sh
+
+echo
 echo ">>> Verwyder File Browser"
 
 rm -f /usr/local/bin/filebrowser

@@ -9,6 +9,7 @@ DEFAULT_STATION_NAME="Radio Orania"
 DEFAULT_MUSIC_WEIGHT="4"
 DEFAULT_SWEEPER_WEIGHT="1"
 DEFAULT_INSTALL_FILEBROWSER="yes"
+DEFAULT_RESTART_SCHEDULE="06:30 13:30"
 
 echo
 echo "===================================="
@@ -135,6 +136,49 @@ else
     FILEBROWSER_PORT="8081"
 
 fi
+
+#
+# Outo-restart
+#
+
+echo
+read -rp "Installeer outo-restart timer? (Y/N) [N]: " RESTART_TIMER
+
+if [[ "$RESTART_TIMER" =~ ^[Yy]$ ]]; then
+
+    INSTALL_RESTART_TIMER="yes"
+
+    while true; do
+
+        read -rp "Restart tye (spasie-geskei) [$DEFAULT_RESTART_SCHEDULE]: " RESTART_SCHEDULE
+        RESTART_SCHEDULE=${RESTART_SCHEDULE:-$DEFAULT_RESTART_SCHEDULE}
+
+        VALID_SCHEDULE=true
+
+        for slot in $RESTART_SCHEDULE; do
+            if [[ ! "$slot" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+                VALID_SCHEDULE=false
+                break
+            fi
+        done
+
+        if [ "$VALID_SCHEDULE" = true ]; then
+            break
+        fi
+
+        echo "Gebruik 24-uur tye soos 06:30 13:30"
+
+    done
+
+    read -rp "Uptime Kuma Push URL (opsioneel): " RESTART_PUSH_URL
+
+else
+
+    INSTALL_RESTART_TIMER="no"
+    RESTART_SCHEDULE="$DEFAULT_RESTART_SCHEDULE"
+    RESTART_PUSH_URL=""
+
+fi
 #
 # Opsomming
 #
@@ -163,6 +207,18 @@ if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
     echo "FB Poort         : $FILEBROWSER_PORT"
 else
     echo "File Browser     : Nee"
+fi
+
+if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
+    echo "Outo-restart     : Ja"
+    echo "Restart Tye      : $RESTART_SCHEDULE"
+    if [ -n "$RESTART_PUSH_URL" ]; then
+        echo "Kuma Push URL    : Ingestel"
+    else
+        echo "Kuma Push URL    : Nie ingestel"
+    fi
+else
+    echo "Outo-restart     : Nee"
 fi
 
 echo
@@ -212,6 +268,10 @@ INSTALL_FILEBROWSER="$INSTALL_FILEBROWSER"
 
 FILEBROWSER_ADDRESS="$FILEBROWSER_ADDRESS"
 FILEBROWSER_PORT="$FILEBROWSER_PORT"
+
+INSTALL_RESTART_TIMER="$INSTALL_RESTART_TIMER"
+RESTART_SCHEDULE="$RESTART_SCHEDULE"
+RESTART_PUSH_URL="$RESTART_PUSH_URL"
 EOF
 
 install -m 600 \
