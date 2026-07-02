@@ -9,7 +9,7 @@ while true; do
     curl \
         -fsS \
         -o /dev/null \
-        "${HEARTBEAT_URL}1"
+        "$HEARTBEAT_URL"
 
     sleep 5
 

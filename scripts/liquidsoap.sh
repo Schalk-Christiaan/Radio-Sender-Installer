@@ -10,6 +10,10 @@ source "$SCRIPT_DIR/../config/environment.conf"
 TARGET_DIR="/opt/radio-orania/liquidsoap"
 TARGET_FILE="$TARGET_DIR/radio.liq"
 
+escape_sed_replacement() {
+    printf '%s' "$1" | sed 's/[&|]/\\&/g'
+}
+
 progress 10 "Skep Liquidsoap gids"
 
 mkdir -p "$TARGET_DIR"
@@ -22,9 +26,9 @@ cp \
 
 progress 50 "Vul konfigurasie in"
 
-sed -i "s|__STREAM_URL__|$STREAM_URL|g" "$TARGET_FILE"
+sed -i "s|__STREAM_URL__|$(escape_sed_replacement "$STREAM_URL")|g" "$TARGET_FILE"
 
-sed -i "s|__ALSA_DEVICE__|$ALSA_DEVICE|g" "$TARGET_FILE"
+sed -i "s|__ALSA_DEVICE__|$(escape_sed_replacement "$ALSA_DEVICE")|g" "$TARGET_FILE"
 
 sed -i "s|__MUSIC_WEIGHT__|$MUSIC_WEIGHT|g" "$TARGET_FILE"
 

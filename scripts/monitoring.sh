@@ -12,13 +12,8 @@ BASE_DIR="/opt/radio-orania"
 progress 25 "Kontroleer heartbeat"
 
 if [ -z "$HEARTBEAT_URL" ]; then
-
-```
-progress 100 "Geen heartbeat ingestel"
-
-exit 0
-```
-
+    progress 100 "Geen heartbeat ingestel"
+    exit 0
 fi
 
 progress 50 "Installeer heartbeat"
@@ -35,8 +30,8 @@ chmod +x \
 progress 75 "Installeer heartbeat diens"
 
 cp \
-"$SCRIPT_DIR/../templates/radio-heartbeat.service" \
-/etc/systemd/system/radio-heartbeat.service
+    "$SCRIPT_DIR/../templates/radio-heartbeat.service" \
+    /etc/systemd/system/radio-heartbeat.service
 
 systemctl daemon-reload
 

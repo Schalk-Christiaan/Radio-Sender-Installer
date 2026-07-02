@@ -17,6 +17,8 @@ for arg in "$@"; do
 done
 
 LOG_FILE="$SCRIPT_DIR/installer.log"
+CONFIG_FILE="$SCRIPT_DIR/config/environment.conf"
+DEPLOYED_CONFIG="/opt/radio-orania/config/environment.conf"
 
 run_step() {
 
@@ -36,8 +38,19 @@ echo " Radio Orania Sender Installer"
 echo "=============================="
 echo
 
+if [ "$EUID" -ne 0 ]; then
+    echo "Hierdie installer moet as root loop."
+    echo "Gebruik: sudo bash install.sh"
+    exit 1
+fi
+
 # Setup indien nodig
-if [ -f "$SCRIPT_DIR/config/environment.conf" ]; then
+if [ ! -f "$CONFIG_FILE" ] && [ -f "$DEPLOYED_CONFIG" ]; then
+    mkdir -p "$SCRIPT_DIR/config"
+    cp "$DEPLOYED_CONFIG" "$CONFIG_FILE"
+fi
+
+if [ -f "$CONFIG_FILE" ]; then
 
     echo "Bestaande konfigurasie gevind."
 
@@ -54,13 +67,13 @@ else
 fi
 
 # Verifieer konfigurasie
-if [ ! -f "$SCRIPT_DIR/config/environment.conf" ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
     echo "FOUT: environment.conf ontbreek."
     exit 1
 fi
 
 # Lees konfigurasie
-source "$SCRIPT_DIR/config/environment.conf"
+source "$CONFIG_FILE"
 
 # Installasie
 run_step "Installeer afhanklikhede" "$SCRIPT_DIR/scripts/dependencies.sh"

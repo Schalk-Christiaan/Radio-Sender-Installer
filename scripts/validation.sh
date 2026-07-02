@@ -161,7 +161,7 @@ if [ -n "$HEARTBEAT_URL" ]; then
 
     ok "Heartbeat URL ingestel"
 
-    if [ -x /usr/local/bin/heartbeat.sh ]; then
+    if [ -x /opt/radio-orania/monitoring/heartbeat.sh ]; then
         ok "Heartbeat script gevind"
     else
         warn "Heartbeat script ontbreek"

@@ -15,6 +15,24 @@ FB_USER="admin"
 FB_PORT="$FILEBROWSER_PORT"
 FB_ADDRESS="$FILEBROWSER_ADDRESS"
 
+ARCH=$(uname -m)
+
+case "$ARCH" in
+    x86_64|amd64)
+        FB_ARCH="amd64"
+        ;;
+    aarch64|arm64)
+        FB_ARCH="arm64"
+        ;;
+    armv7l)
+        FB_ARCH="armv7"
+        ;;
+    *)
+        echo "Onondersteunde File Browser argitektuur: $ARCH"
+        exit 1
+        ;;
+esac
+
 progress 10 "Installeer vereistes"
 
 apt-get install -y -qq \
@@ -29,7 +47,7 @@ progress 25 "Laai File Browser af"
 TMP_FILE="/tmp/filebrowser.tar.gz"
 
 curl -L \
-    https://github.com/filebrowser/filebrowser/releases/latest/download/linux-amd64-filebrowser.tar.gz \
+    "https://github.com/filebrowser/filebrowser/releases/latest/download/linux-$FB_ARCH-filebrowser.tar.gz" \
     -o "$TMP_FILE"
 
 progress 40 "Pak uit"
@@ -37,6 +55,11 @@ progress 40 "Pak uit"
 rm -f /tmp/filebrowser
 
 tar -xzf "$TMP_FILE" -C /tmp
+
+if [ ! -f /tmp/filebrowser ]; then
+    echo "File Browser binary ontbreek na uitpak."
+    exit 1
+fi
 
 progress 55 "Installeer binary"
 
