@@ -15,7 +15,6 @@ SHOW_CURSOR=$'\033[?25h'
 STATUS_MSG=""
 PLAYING=false
 PLAYER_PID=""
-MONITOR_URL=""
 
 spinner_run() {
 
@@ -48,40 +47,25 @@ spinner_run() {
     return "$status"
 }
 
-# Neem 'n vinnige (0.5s) klankmonster van die stroom en gee 'n eenvoudige
-# balk terug wat die volume van daardie oomblik wys - 'n ligte, regte
-# vlak-aanduiding sonder om die skerm oor te neem soos 'n volle
-# spektrum-ontleder sou doen.
-level_bar() {
+# 'n Ligte, suiwer-bash "golfvorm" wat by elke verversing 'n stap
+# aanbeweeg. Dit is opsetlik net dekoratief (nie 'n regte oudio-
+# ontleding nie) - 'n vorige weergawe het elke sekonde 'n nuwe ffmpeg-
+# proses geskep om die klankvlak te meet, wat broos was (dikwels leeg)
+# en die teken-siklus onvoorspelbaar vertraag het. 'n Suiwer
+# string-opsoek loop altyd, is oombliklik, en skep nooit 'n subproses nie.
+WAVE_PATTERNS=(
+    "▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂"
+    "▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁"
+    "▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂"
+    "▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃"
+    "▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅"
+    "▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇"
+)
+WAVE_FRAME=0
 
-    local url="$1"
-    local width=24
-
-    local vol
-    vol=$(timeout 2 ffmpeg -nostdin -i "$url" -t 0.5 -af volumedetect -f null - 2>&1 |
-        grep -oE 'mean_volume: [-0-9.]+' | grep -oE '[-0-9.]+')
-    vol=${vol:--45}
-
-    local filled
-    filled=$(awk -v v="$vol" -v w="$width" 'BEGIN {
-        b = (v + 45) / 45 * w
-        if (b < 0) b = 0
-        if (b > w) b = w
-        printf "%d", b
-    }')
-
-    local bar=""
-    local i
-
-    for ((i = 0; i < width; i++)); do
-        if [ "$i" -lt "$filled" ]; then
-            bar="${bar}█"
-        else
-            bar="${bar}░"
-        fi
-    done
-
-    echo "$bar"
+fake_wave() {
+    local idx=$(( WAVE_FRAME % ${#WAVE_PATTERNS[@]} ))
+    echo "${WAVE_PATTERNS[$idx]}"
 }
 
 toggle_listen() {
@@ -92,7 +76,6 @@ toggle_listen() {
 
         PLAYING=false
         PLAYER_PID=""
-        MONITOR_URL=""
         STATUS_MSG="Musiek gestop."
 
     else
@@ -112,7 +95,6 @@ toggle_listen() {
 
         mpv --no-video --really-quiet "$url" >/dev/null 2>&1 &
         PLAYER_PID=$!
-        MONITOR_URL="$url"
         PLAYING=true
         STATUS_MSG="Speel nou..."
 
@@ -227,17 +209,25 @@ BANNER
 # sou veroorsaak nie.
 draw() {
 
+    # WAVE_FRAME moet BUITE die $(...) subshell hieronder verhoog word -
+    # veranderinge binne 'n command substitution se subshell gaan
+    # verlore sodra dit klaar is, en die "animasie" sou nooit beweeg nie.
+    WAVE_FRAME=$(( WAVE_FRAME + 1 ))
+
     local frame
     frame=$(
         draw_banner
         sudo radioctl status --color
         echo
 
+        # Hierdie blok bly altyd twee reëls, of ons nou speel of nie, sodat
+        # die raam se totale hoogte nooit tussen verversings verander nie.
         if [ "$PLAYING" = true ]; then
-            echo "  ${GREEN}▶ Luister nou${RESET}"
-            echo "  $(level_bar "$MONITOR_URL")"
+            echo "  ${GREEN}▶ Luister nou${RESET}   $(fake_wave)"
+        else
             echo
         fi
+        echo
 
         echo "----------------------------------------------------"
         echo "  [S] Begin   [T] Stop   [R] Herbegin   [L] Logs"
