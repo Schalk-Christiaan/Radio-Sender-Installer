@@ -74,6 +74,24 @@ else
 fi
 
 #
+# Diens-gebruiker
+#
+
+progress 30 "Diens-gebruiker"
+
+if id radio-orania >/dev/null 2>&1; then
+    ok "radio-orania gebruiker bestaan"
+else
+    fail "radio-orania gebruiker ontbreek"
+fi
+
+if command -v radioctl >/dev/null 2>&1; then
+    ok "radioctl beheerpaneel geïnstalleer"
+else
+    warn "radioctl beheerpaneel ontbreek"
+fi
+
+#
 # Netwerk
 #
 

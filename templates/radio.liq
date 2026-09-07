@@ -1,7 +1,5 @@
 # Instellings
 
-settings.init.allow_root := true
-
 radio_url = "__STREAM_URL__"
 
 music_folder = "/opt/radio-orania/media/Musiek"

@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/../config/environment.conf"
 
 BASE_DIR="/opt/radio-orania"
 FB_DIR="$BASE_DIR/filebrowser"
+SERVICE_USER="radio-orania"
 
 FB_USER="admin"
 
@@ -67,39 +68,37 @@ install -m 755 \
     /tmp/filebrowser \
     /usr/local/bin/filebrowser
 
-progress 70 "Genereer wagwoord"
+progress 70 "Kontroleer bestaande databasis"
 
-FB_PASSWORD=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
-
-progress 80 "Skep databasis"
+NEW_INSTALL=true
 
 if [ -f "$FB_DIR/database.db" ]; then
-
-    progress 82 "Verwyder ou databasis"
-
-    systemctl stop filebrowser.service 2>/dev/null || true
-
-    rm -f "$FB_DIR/database.db"
-
+    NEW_INSTALL=false
 fi
 
-filebrowser config init \
-    --database "$FB_DIR/database.db" \
-    >/dev/null 2>&1
+if [ "$NEW_INSTALL" = true ]; then
 
-filebrowser config set \
-    --database "$FB_DIR/database.db" \
-    --root "$BASE_DIR/media" \
-    >/dev/null 2>&1
+    progress 80 "Skep databasis"
 
-filebrowser users add \
-    "$FB_USER" \
-    "$FB_PASSWORD" \
-    --perm.admin \
-    --database "$FB_DIR/database.db" \
-    >/dev/null 2>&1
+    FB_PASSWORD=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
 
-cat > "$FB_DIR/credentials.txt" << EOF
+    filebrowser config init \
+        --database "$FB_DIR/database.db" \
+        >/dev/null 2>&1
+
+    filebrowser config set \
+        --database "$FB_DIR/database.db" \
+        --root "$BASE_DIR/media" \
+        >/dev/null 2>&1
+
+    filebrowser users add \
+        "$FB_USER" \
+        "$FB_PASSWORD" \
+        --perm.admin \
+        --database "$FB_DIR/database.db" \
+        >/dev/null 2>&1
+
+    cat > "$FB_DIR/credentials.txt" << EOF
 File Browser Login
 
 URL:
@@ -112,6 +111,18 @@ Wagwoord:
 $FB_PASSWORD
 EOF
 
+    chmod 600 "$FB_DIR/credentials.txt"
+
+else
+    progress 82 "Bestaande databasis en gebruikers word behou"
+fi
+
+progress 85 "Stel eienaarskap"
+
+# database.db word deur root geskep; die diens loop egter as radio-orania
+# en moet daarin kan skryf, dus moet eienaarskap voor die eerste begin reggestel word.
+chown -R "$SERVICE_USER:audio" "$FB_DIR"
+
 progress 90 "Skep systemd diens"
 
 cat > /etc/systemd/system/filebrowser.service << EOF
@@ -121,6 +132,7 @@ After=network.target
 
 [Service]
 Type=simple
+User=$SERVICE_USER
 
 ExecStart=/usr/local/bin/filebrowser \
   --address $FB_ADDRESS \
@@ -150,9 +162,17 @@ echo " File Browser"
 echo "===================================="
 echo
 echo "URL: http://$FB_ADDRESS:$FB_PORT"
-echo "Gebruiker: $FB_USER"
-echo "Wagwoord : $FB_PASSWORD"
-echo
-echo "Bewaar:"
-echo "$FB_DIR/credentials.txt"
+
+if [ "$NEW_INSTALL" = true ]; then
+    echo "Gebruiker: $FB_USER"
+    echo "Wagwoord : $FB_PASSWORD"
+    echo
+    echo "Bewaar:"
+    echo "$FB_DIR/credentials.txt"
+else
+    echo
+    echo "Bestaande gebruikers en wagwoorde is onveranderd gelaat."
+    echo "Sien indien nodig: $FB_DIR/credentials.txt"
+fi
+
 echo

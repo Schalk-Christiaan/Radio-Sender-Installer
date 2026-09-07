@@ -17,7 +17,7 @@ cat > "$HELPER_FILE" << EOF
 #!/bin/bash
 set -e
 
-PUSH_URL="$RESTART_PUSH_URL"
+PUSH_URL=$(printf '%q' "$RESTART_PUSH_URL")
 BASE_PUSH_URL="\${PUSH_URL%%\?*}"
 SERVICE_NAME="radio-orania.service"
 MAX_WAIT=60

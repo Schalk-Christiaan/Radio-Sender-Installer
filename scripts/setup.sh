@@ -8,8 +8,44 @@ CONFIG_DIR="$SCRIPT_DIR/../config"
 DEFAULT_STATION_NAME="Radio Orania"
 DEFAULT_MUSIC_WEIGHT="4"
 DEFAULT_SWEEPER_WEIGHT="1"
-DEFAULT_INSTALL_FILEBROWSER="yes"
 DEFAULT_RESTART_SCHEDULE="06:30 13:30"
+
+#
+# Validering
+#
+# Waardes hieronder word later in gegenereerde skripte en in
+# environment.conf geskryf. Ons weier gevaarlike karakters (aanhalingstekens,
+# backticks, $, ; en whitespace) sodat 'n kwaadwillige of tikfout-waarde nooit
+# as shell-kode uitgevoer kan word nie, ongeag hoe dit later gebruik word.
+#
+
+contains_unsafe_chars() {
+    case "$1" in
+        *[\"\'\`\;\\]*) return 0 ;;
+        *[[:space:]]*) return 0 ;;
+    esac
+    return 1
+}
+
+validate_plain_text() {
+    [ -n "$1" ] && ! contains_unsafe_chars "$1"
+}
+
+validate_url() {
+    [[ "$1" =~ ^https?:// ]] && ! contains_unsafe_chars "$1"
+}
+
+validate_host() {
+    [[ "$1" =~ ^[A-Za-z0-9.:-]+$ ]]
+}
+
+validate_port() {
+    [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+
+validate_positive_int() {
+    [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ]
+}
 
 echo
 echo "===================================="
@@ -21,8 +57,18 @@ echo
 # Sender Naam
 #
 
-read -rp "Sender Naam [$DEFAULT_STATION_NAME]: " STATION_NAME
-STATION_NAME=${STATION_NAME:-$DEFAULT_STATION_NAME}
+while true; do
+
+    read -rp "Sender Naam [$DEFAULT_STATION_NAME]: " STATION_NAME
+    STATION_NAME=${STATION_NAME:-$DEFAULT_STATION_NAME}
+
+    if validate_plain_text "$STATION_NAME"; then
+        break
+    fi
+
+    echo "Sender naam mag nie aanhalingstekens, backticks, \$, ; of spasies-alleen bevat nie."
+
+done
 
 #
 # Stream URL
@@ -36,11 +82,11 @@ while true; do
 
     STREAM_URL=${STREAM_URL:-$DEFAULT_STREAM_URL}
 
-    if [ -n "$STREAM_URL" ]; then
+    if validate_url "$STREAM_URL"; then
         break
     fi
 
-    echo "Stroom URL is verpligtend."
+    echo "Stroom URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
 
 done
 
@@ -48,11 +94,31 @@ done
 # Gewigte
 #
 
-read -rp "Musiek gewig [$DEFAULT_MUSIC_WEIGHT]: " MUSIC_WEIGHT
-MUSIC_WEIGHT=${MUSIC_WEIGHT:-$DEFAULT_MUSIC_WEIGHT}
+while true; do
 
-read -rp "Sweeper gewig [$DEFAULT_SWEEPER_WEIGHT]: " SWEEPER_WEIGHT
-SWEEPER_WEIGHT=${SWEEPER_WEIGHT:-$DEFAULT_SWEEPER_WEIGHT}
+    read -rp "Musiek gewig [$DEFAULT_MUSIC_WEIGHT]: " MUSIC_WEIGHT
+    MUSIC_WEIGHT=${MUSIC_WEIGHT:-$DEFAULT_MUSIC_WEIGHT}
+
+    if validate_positive_int "$MUSIC_WEIGHT"; then
+        break
+    fi
+
+    echo "Musiek gewig moet 'n positiewe heelgetal wees."
+
+done
+
+while true; do
+
+    read -rp "Sweeper gewig [$DEFAULT_SWEEPER_WEIGHT]: " SWEEPER_WEIGHT
+    SWEEPER_WEIGHT=${SWEEPER_WEIGHT:-$DEFAULT_SWEEPER_WEIGHT}
+
+    if validate_positive_int "$SWEEPER_WEIGHT"; then
+        break
+    fi
+
+    echo "Sweeper gewig moet 'n positiewe heelgetal wees."
+
+done
 
 #
 # ALSA Toestelle
@@ -108,7 +174,18 @@ done
 #
 
 echo
-read -rp "Heartbeat URL (opsioneel): " HEARTBEAT_URL
+
+while true; do
+
+    read -rp "Heartbeat URL (opsioneel): " HEARTBEAT_URL
+
+    if [ -z "$HEARTBEAT_URL" ] || validate_url "$HEARTBEAT_URL"; then
+        break
+    fi
+
+    echo "Heartbeat URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
+
+done
 
 #
 # File Browser
@@ -122,11 +199,27 @@ if [[ ! "$FB" =~ ^[Nn]$ ]]; then
 
     echo
 
-    read -rp "File Browser Adres [0.0.0.0]: " FILEBROWSER_ADDRESS
-    FILEBROWSER_ADDRESS=${FILEBROWSER_ADDRESS:-0.0.0.0}
+    while true; do
+        read -rp "File Browser Adres [0.0.0.0]: " FILEBROWSER_ADDRESS
+        FILEBROWSER_ADDRESS=${FILEBROWSER_ADDRESS:-0.0.0.0}
 
-    read -rp "File Browser Poort [8081]: " FILEBROWSER_PORT
-    FILEBROWSER_PORT=${FILEBROWSER_PORT:-8081}
+        if validate_host "$FILEBROWSER_ADDRESS"; then
+            break
+        fi
+
+        echo "Ongeldige adres."
+    done
+
+    while true; do
+        read -rp "File Browser Poort [8081]: " FILEBROWSER_PORT
+        FILEBROWSER_PORT=${FILEBROWSER_PORT:-8081}
+
+        if validate_port "$FILEBROWSER_PORT"; then
+            break
+        fi
+
+        echo "Poort moet 'n getal tussen 1 en 65535 wees."
+    done
 
 else
 
@@ -170,7 +263,17 @@ if [[ "$RESTART_TIMER" =~ ^[Yy]$ ]]; then
 
     done
 
-    read -rp "Uptime Kuma Push URL (opsioneel): " RESTART_PUSH_URL
+    while true; do
+
+        read -rp "Uptime Kuma Push URL (opsioneel): " RESTART_PUSH_URL
+
+        if [ -z "$RESTART_PUSH_URL" ] || validate_url "$RESTART_PUSH_URL"; then
+            break
+        fi
+
+        echo "Push URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
+
+    done
 
 else
 
@@ -248,31 +351,35 @@ PLAYLIST_PREFETCH="10"
 #
 # Skryf environment.conf
 #
+# Elke waarde word met printf %q veilig ge-kwoteer voordat dit geskryf word,
+# sodat 'n waarde met spesiale karakters nooit as bykomende shell-opdragte
+# uitgevoer kan word wanneer die lêer later ge-`source` word (as root).
+#
 
-cat > "$CONFIG_DIR/environment.conf" << EOF
-STATION_NAME="$STATION_NAME"
-
-STREAM_URL="$STREAM_URL"
-
-ALSA_DEVICE="$ALSA_DEVICE"
-
-MUSIC_WEIGHT="$MUSIC_WEIGHT"
-SWEEPER_WEIGHT="$SWEEPER_WEIGHT"
-
-PLAYLIST_RELOAD="$PLAYLIST_RELOAD"
-PLAYLIST_PREFETCH="$PLAYLIST_PREFETCH"
-
-HEARTBEAT_URL="$HEARTBEAT_URL"
-
-INSTALL_FILEBROWSER="$INSTALL_FILEBROWSER"
-
-FILEBROWSER_ADDRESS="$FILEBROWSER_ADDRESS"
-FILEBROWSER_PORT="$FILEBROWSER_PORT"
-
-INSTALL_RESTART_TIMER="$INSTALL_RESTART_TIMER"
-RESTART_SCHEDULE="$RESTART_SCHEDULE"
-RESTART_PUSH_URL="$RESTART_PUSH_URL"
-EOF
+{
+    printf '%s=%q\n' STATION_NAME "$STATION_NAME"
+    echo
+    printf '%s=%q\n' STREAM_URL "$STREAM_URL"
+    echo
+    printf '%s=%q\n' ALSA_DEVICE "$ALSA_DEVICE"
+    echo
+    printf '%s=%q\n' MUSIC_WEIGHT "$MUSIC_WEIGHT"
+    printf '%s=%q\n' SWEEPER_WEIGHT "$SWEEPER_WEIGHT"
+    echo
+    printf '%s=%q\n' PLAYLIST_RELOAD "$PLAYLIST_RELOAD"
+    printf '%s=%q\n' PLAYLIST_PREFETCH "$PLAYLIST_PREFETCH"
+    echo
+    printf '%s=%q\n' HEARTBEAT_URL "$HEARTBEAT_URL"
+    echo
+    printf '%s=%q\n' INSTALL_FILEBROWSER "$INSTALL_FILEBROWSER"
+    echo
+    printf '%s=%q\n' FILEBROWSER_ADDRESS "$FILEBROWSER_ADDRESS"
+    printf '%s=%q\n' FILEBROWSER_PORT "$FILEBROWSER_PORT"
+    echo
+    printf '%s=%q\n' INSTALL_RESTART_TIMER "$INSTALL_RESTART_TIMER"
+    printf '%s=%q\n' RESTART_SCHEDULE "$RESTART_SCHEDULE"
+    printf '%s=%q\n' RESTART_PUSH_URL "$RESTART_PUSH_URL"
+} > "$CONFIG_DIR/environment.conf"
 
 install -m 600 \
     "$CONFIG_DIR/environment.conf" \

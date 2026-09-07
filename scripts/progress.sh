@@ -1,3 +1,5 @@
+#!/bin/bash
+
 progress() {
 
     local percent="$1"

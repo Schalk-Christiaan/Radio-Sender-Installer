@@ -48,4 +48,10 @@ else
     exit 1
 fi
 
+progress 90 "Stel eienaarskap"
+
+if id radio-orania >/dev/null 2>&1; then
+    chown -R radio-orania:audio "$TARGET_DIR"
+fi
+
 progress 100 "Klaar"

@@ -27,6 +27,10 @@ cp \
 chmod +x \
     "$BASE_DIR/monitoring/heartbeat.sh"
 
+if id radio-orania >/dev/null 2>&1; then
+    chown radio-orania:audio "$BASE_DIR/monitoring/heartbeat.sh"
+fi
+
 progress 75 "Installeer heartbeat diens"
 
 cp \

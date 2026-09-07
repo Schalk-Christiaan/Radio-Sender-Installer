@@ -1,9 +1,10 @@
 [Unit]
-Description=Radio Orania Sender
+Description=Radio Sender: __STATION_NAME__
 After=network-online.target
 
 [Service]
 Type=simple
+User=radio-orania
 Restart=always
 RestartSec=5
 
