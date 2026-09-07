@@ -15,20 +15,28 @@ DEFAULT_RESTART_SCHEDULE="06:30 13:30"
 #
 # Waardes hieronder word later in gegenereerde skripte en in
 # environment.conf geskryf. Ons weier gevaarlike karakters (aanhalingstekens,
-# backticks, $, ; en whitespace) sodat 'n kwaadwillige of tikfout-waarde nooit
-# as shell-kode uitgevoer kan word nie, ongeag hoe dit later gebruik word.
+# backticks, $ en ;) sodat 'n kwaadwillige of tikfout-waarde nooit as
+# shell-kode uitgevoer kan word nie, ongeag hoe dit later gebruik word.
+# Spasies word wel toegelaat vir vrye-teks velde soos die sender naam.
 #
 
-contains_unsafe_chars() {
+contains_shell_metachars() {
     case "$1" in
-        *[\"\'\`\;\\]*) return 0 ;;
+        *[\"\'\`\;\\\$]*) return 0 ;;
+    esac
+    return 1
+}
+
+contains_unsafe_chars() {
+    contains_shell_metachars "$1" && return 0
+    case "$1" in
         *[[:space:]]*) return 0 ;;
     esac
     return 1
 }
 
 validate_plain_text() {
-    [ -n "$1" ] && ! contains_unsafe_chars "$1"
+    [ -n "$1" ] && ! contains_shell_metachars "$1"
 }
 
 validate_url() {

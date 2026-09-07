@@ -150,7 +150,7 @@ run_step "Monitering opstel" "$SCRIPT_DIR/scripts/monitoring.sh"
 
 if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
     run_step "Installeer outo-restart timer" "$SCRIPT_DIR/scripts/restarttimer.sh"
-elif systemctl list-unit-files | grep -q radio-orania-restart.timer; then
+elif [ -f /etc/systemd/system/radio-orania-restart.timer ]; then
     run_step "Verwyder outo-restart timer" "$SCRIPT_DIR/scripts/uninstall_restarttimer.sh"
 fi
 

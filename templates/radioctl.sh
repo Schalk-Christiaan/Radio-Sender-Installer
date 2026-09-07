@@ -27,8 +27,8 @@ cmd_status() {
     echo "Stroom URL    : ${STREAM_URL:-onbekend}"
     echo
 
-    for svc in radio-orania filebrowser radio-heartbeat radio-orania-restart.timer; do
-        if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}\.\?"; then
+    for svc in radio-orania.service filebrowser.service radio-heartbeat.service radio-orania-restart.timer; do
+        if [ -f "/etc/systemd/system/$svc" ]; then
             if systemctl is-active --quiet "$svc" 2>/dev/null; then
                 printf "%-28s %s\n" "$svc" "loop"
             else
