@@ -6,6 +6,27 @@ BASE_DIR="/opt/radio-orania"
 CONFIG_FILE="$BASE_DIR/config/environment.conf"
 INSTALLER_DIR="$BASE_DIR/installer"
 
+contains_shell_metachars() {
+    case "$1" in
+        *[\"\'\`\;\\\$]*) return 0 ;;
+    esac
+    return 1
+}
+
+is_valid_plain_text() {
+    [ -n "$1" ] && ! contains_shell_metachars "$1"
+}
+
+is_valid_url() {
+    [ -n "$1" ] || return 1
+    [[ "$1" =~ ^https?:// ]] || return 1
+    contains_shell_metachars "$1" && return 1
+    case "$1" in
+        *[[:space:]]*) return 1 ;;
+    esac
+    return 0
+}
+
 need_root() {
     if [ "$EUID" -ne 0 ]; then
         echo "Hierdie opdrag moet as root loop. Gebruik: sudo radioctl $1"
@@ -117,23 +138,47 @@ cmd_backup() {
     echo "Rugsteun gestoor: $dest"
 }
 
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL"
+
+with_installer_config() {
+    # persist_installer.sh verwyder doelbewus die installer se eie
+    # config-kopie (om nie geheime te verdubbel nie) - herstel dit net
+    # tydelik sodat die installer-skripte die nuwe waardes kan lees.
+    mkdir -p "$INSTALLER_DIR/config"
+    cp "$CONFIG_FILE" "$INSTALLER_DIR/config/environment.conf"
+
+    set +e
+    "$@"
+    local status=$?
+    set -e
+
+    rm -f "$INSTALLER_DIR/config/environment.conf"
+    return "$status"
+}
+
 cmd_set() {
     need_root "set <SLEUTEL> <WAARDE>"
 
-    local key="${1:-}"
-    local value="${2:-}"
-
-    if [ -z "$key" ] || [ -z "$value" ]; then
-        echo "Gebruik: radioctl set <STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT> <waarde>"
+    if [ "$#" -lt 2 ]; then
+        echo "Gebruik: radioctl set <SLEUTEL> <WAARDE>"
+        echo "Sleutels: $SETTABLE_KEYS"
         exit 1
     fi
 
+    local key="$1"
+    local value="$2"
+
     case "$key" in
         STREAM_URL)
-            if [[ ! "$value" =~ ^https?:// ]] ||
-               [[ "$value" =~ [\"\'\`\;\\] ]] ||
-               [[ "$value" =~ [[:space:]] ]]; then
+            is_valid_url "$value" || {
                 echo "Ongeldige URL. Moet met http:// of https:// begin, geen aanhalingstekens/spasies nie."
+                exit 1
+            }
+            ;;
+        BACKUP_STREAM_URL|HEARTBEAT_URL)
+            if [ -n "$value" ] && ! is_valid_url "$value"; then
+                echo "Ongeldige URL. Moet met http:// of https:// begin, geen aanhalingstekens/spasies nie."
+                echo "(Laat leeg - 'radioctl set $key \"\"' - om dit af te skakel.)"
                 exit 1
             fi
             ;;
@@ -143,9 +188,21 @@ cmd_set() {
                 exit 1
             fi
             ;;
+        ALSA_DEVICE)
+            is_valid_plain_text "$value" || {
+                echo "Ongeldige ALSA-toestel."
+                exit 1
+            }
+            ;;
+        STATION_NAME)
+            is_valid_plain_text "$value" || {
+                echo "Sender naam mag nie aanhalingstekens, backticks, \$ of ; bevat nie."
+                exit 1
+            }
+            ;;
         *)
             echo "Onbekende of nie-verstelbare instelling: $key"
-            echo "Beskikbaar: STREAM_URL, MUSIC_WEIGHT, SWEEPER_WEIGHT"
+            echo "Beskikbaar: $SETTABLE_KEYS"
             exit 1
             ;;
     esac
@@ -164,20 +221,39 @@ cmd_set() {
     install -m 600 -o radio-orania -g audio "$tmp" "$CONFIG_FILE"
     rm -f "$tmp"
 
-    if [ -x "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
-        # persist_installer.sh verwyder doelbewus die installer se eie
-        # config-kopie (om nie geheime te verdubbel nie) - herstel dit
-        # net tydelik sodat liquidsoap.sh die nuwe waarde kan lees.
-        mkdir -p "$INSTALLER_DIR/config"
-        cp "$CONFIG_FILE" "$INSTALLER_DIR/config/environment.conf"
-        bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null
-        rm -f "$INSTALLER_DIR/config/environment.conf"
-        systemctl restart radio-orania.service
-        echo "$key opgedateer na '$value' en toegepas."
-    else
-        echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
-        echo "Loop 'sudo radioctl reconfigure' om dit toe te pas."
-    fi
+    case "$key" in
+        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE)
+            if [ ! -x "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
+                echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
+            elif with_installer_config bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null; then
+                systemctl restart radio-orania.service
+                echo "$key opgedateer na '$value' en toegepas."
+            else
+                echo "$key gestoor, maar kon nie toegepas word nie - die nuwe waarde het Liquidsoap se kontrole gedruip."
+                exit 1
+            fi
+            ;;
+        STATION_NAME)
+            if [ ! -x "$INSTALLER_DIR/scripts/service.sh" ]; then
+                echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
+            elif with_installer_config bash "$INSTALLER_DIR/scripts/service.sh" >/dev/null; then
+                echo "$key opgedateer na '$value' en toegepas."
+            else
+                echo "$key gestoor, maar kon nie toegepas word nie."
+                exit 1
+            fi
+            ;;
+        HEARTBEAT_URL)
+            if [ ! -x "$INSTALLER_DIR/scripts/monitoring.sh" ]; then
+                echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
+            elif with_installer_config bash "$INSTALLER_DIR/scripts/monitoring.sh" >/dev/null; then
+                echo "$key opgedateer na '$value' en toegepas."
+            else
+                echo "$key gestoor, maar kon nie toegepas word nie."
+                exit 1
+            fi
+            ;;
+    esac
 }
 
 cmd_passwords() {
@@ -257,7 +333,7 @@ Gebruik: radioctl <opdrag>
   media          Wys File Browser toegangsbesonderhede
   monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
   backup         Skep 'n rugsteun van die mediavouer
-  set <S> <W>    Verander 'n instelling (STREAM_URL, MUSIC_WEIGHT, SWEEPER_WEIGHT)
+  set <S> <W>    Verander 'n instelling ($SETTABLE_KEYS)
   passwords      Wys al die gestoorde wagwoorde
   reconfigure    Loop die opstelling-assistent weer
   update         Trek die jongste weergawe en herinstalleer
@@ -275,7 +351,7 @@ case "${1:-}" in
     media)        cmd_media ;;
     monitor-url)  cmd_monitor_url ;;
     backup)       cmd_backup ;;
-    set)          shift; cmd_set "${1:-}" "${2:-}" ;;
+    set)          shift; cmd_set "$@" ;;
     passwords)    cmd_passwords ;;
     reconfigure)  cmd_reconfigure ;;
     update)       cmd_update ;;

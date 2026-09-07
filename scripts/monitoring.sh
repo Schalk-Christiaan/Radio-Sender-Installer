@@ -12,6 +12,14 @@ BASE_DIR="/opt/radio-orania"
 progress 25 "Kontroleer heartbeat"
 
 if [ -z "$HEARTBEAT_URL" ]; then
+
+    if [ -f /etc/systemd/system/radio-heartbeat.service ]; then
+        systemctl stop radio-heartbeat.service 2>/dev/null || true
+        systemctl disable radio-heartbeat.service 2>/dev/null || true
+        rm -f /etc/systemd/system/radio-heartbeat.service
+        systemctl daemon-reload
+    fi
+
     progress 100 "Geen heartbeat ingestel"
     exit 0
 fi

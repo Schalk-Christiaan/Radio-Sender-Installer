@@ -7,8 +7,10 @@
 ## Kenmerke
 
 * Internet radiostroom afspeel
-* Outomatiese failover na noodmusiek
+* Opsionele rugsteun-stroom voor daar na noodmusiek oorgeskakel word
+* Outomatiese failover na noodmusiek (insluitend stilte-opsporing - skakel ook oor as 'n stroom "dooie lug" uitstuur, nie net by 'n werklike ontkoppeling nie)
 * Outomatiese terugskakeling na die stroom
+* Klankvlak-egalisering tussen stroom en plaaslike musiek
 * ALSA klankuitset
 * Systemd diens wat as 'n toegewyde, onbevoorregte gebruiker loop
 * File Browser vir media bestuur
@@ -23,20 +25,14 @@
 ## Hoe dit Werk
 
 ```text
-                    Internet Stroom
+              Hoofstroom  →  Rugsteun-stroom  →  Musiek + Sweepers
+             (opsioneel af/stil)  (opsioneel af/stil)
                            │
                            ▼
                       Liquidsoap
                            │
-            ┌──────────────┴──────────────┐
-            │                             │
-            ▼                             ▼
-     Stroom beskikbaar             Stroom af
-            │                             │
-            ▼                             ▼
-      Direkte stroom            Musiek + Sweepers
-            │                             │
-            └──────────────┬──────────────┘
+                           ▼
+              Klankvlak-egalisering (normalize)
                            │
                            ▼
                         ALSA
@@ -47,6 +43,8 @@
                            ▼
                      FM Sender
 ```
+
+Elke bron (hoofstroom en rugsteun-stroom) word deurlopend vir stilte gemonitor - as een "dooie lug" uitstuur (bv. 'n koderfout by die bron) terwyl dit tegnies nog gekoppel is, skakel Liquidsoap outomaties na die volgende bron in die ry oor.
 
 ---
 
@@ -164,9 +162,11 @@ Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` luis
 
 `[C]` gee toegang tot 'n klein kieslys om fisies op die dashboard te verander, sonder om die opstelling-assistent oor te doen:
 
-* Stroom URL en musiek/sweeper-verhouding verander (word dadelik toegepas en die diens herbegin)
+* Stroom URL (primêr en rugsteun), musiek/sweeper-verhouding, stasienaam, ALSA-klanktoestel en Heartbeat URL verander (word dadelik toegepas en die diens herbegin waar nodig)
 * Al die gestoorde wagwoorde sien (File Browser, beheerpaneel, monitor)
 * Sagteware opdateer, herkonfigureer, of die hele installasie verwyder (met bevestiging)
+
+Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
 
 Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur.
 

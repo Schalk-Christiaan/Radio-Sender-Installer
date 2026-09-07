@@ -113,12 +113,16 @@ settings_menu() {
         clear
         echo "${BOLD}Instellings${RESET}"
         echo
-        echo "  1) Verander stroom URL"
-        echo "  2) Verander musiek/sweeper-verhouding"
-        echo "  3) Wys wagwoorde"
-        echo "  4) Opdateer sagteware"
-        echo "  5) Herkonfigureer (loop opstelling weer)"
-        echo "  6) ${RED}Verwyder alles (uninstall)${RESET}"
+        echo "  1) Verander stroom URL (primêr)"
+        echo "  2) Verander rugsteun-stroom URL"
+        echo "  3) Verander musiek/sweeper-verhouding"
+        echo "  4) Verander stasienaam"
+        echo "  5) Verander ALSA-klanktoestel"
+        echo "  6) Verander Heartbeat URL"
+        echo "  7) Wys wagwoorde"
+        echo "  8) Opdateer sagteware"
+        echo "  9) Herkonfigureer (loop opstelling weer)"
+        echo "  10) ${RED}Verwyder alles (uninstall)${RESET}"
         echo "  0) Terug na hoofskerm"
         echo
 
@@ -131,32 +135,54 @@ settings_menu() {
                 pause
                 ;;
             2)
+                read -r -p "Rugsteun-stroom URL (leeg om af te skakel): " backup_url
+                sudo radioctl set BACKUP_STREAM_URL "$backup_url"
+                pause
+                ;;
+            3)
                 read -r -p "Musiek gewig: " mw
                 read -r -p "Sweeper gewig: " sw
                 sudo radioctl set MUSIC_WEIGHT "$mw"
                 sudo radioctl set SWEEPER_WEIGHT "$sw"
                 pause
                 ;;
-            3)
+            4)
+                read -r -p "Nuwe stasienaam: " new_name
+                sudo radioctl set STATION_NAME "$new_name"
+                pause
+                ;;
+            5)
+                command -v aplay >/dev/null 2>&1 && aplay -l 2>/dev/null
+                echo
+                read -r -p "ALSA-toestel (bv. default, hw:0,0): " alsa
+                sudo radioctl set ALSA_DEVICE "$alsa"
+                pause
+                ;;
+            6)
+                read -r -p "Heartbeat URL (leeg om af te skakel): " hb
+                sudo radioctl set HEARTBEAT_URL "$hb"
+                pause
+                ;;
+            7)
                 clear
                 sudo radioctl passwords
                 pause
                 ;;
-            4)
+            8)
                 read -r -p "Opdateer sagteware nou? (Y/N): " confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     sudo radioctl update
                     pause
                 fi
                 ;;
-            5)
+            9)
                 read -r -p "Herkonfigureer nou? Dit loop die opstelling-vrae weer. (Y/N): " confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     sudo radioctl reconfigure
                     pause
                 fi
                 ;;
-            6)
+            10)
                 read -r -p "WAARSKUWING: dit verwyder ALLES permanent. Is jy seker? (Y/N): " confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     sudo radioctl uninstall

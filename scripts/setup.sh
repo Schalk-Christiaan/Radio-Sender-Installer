@@ -99,6 +99,24 @@ while true; do
 done
 
 #
+# Rugsteun-stroom URL
+#
+
+echo
+
+while true; do
+
+    read -rp "Rugsteun-stroom URL (opsioneel): " BACKUP_STREAM_URL
+
+    if [ -z "$BACKUP_STREAM_URL" ] || validate_url "$BACKUP_STREAM_URL"; then
+        break
+    fi
+
+    echo "Rugsteun-stroom URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
+
+done
+
+#
 # Gewigte
 #
 
@@ -320,6 +338,13 @@ echo
 
 echo "Sender Naam      : $STATION_NAME"
 echo "Stream URL       : $STREAM_URL"
+
+if [ -n "$BACKUP_STREAM_URL" ]; then
+    echo "Rugsteun Stream  : $BACKUP_STREAM_URL"
+else
+    echo "Rugsteun Stream  : Nie ingestel"
+fi
+
 echo "Musiek Gewig     : $MUSIC_WEIGHT"
 echo "Sweeper Gewig    : $SWEEPER_WEIGHT"
 echo "ALSA Device      : $ALSA_DEVICE"
@@ -392,6 +417,7 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' STATION_NAME "$STATION_NAME"
     echo
     printf '%s=%q\n' STREAM_URL "$STREAM_URL"
+    printf '%s=%q\n' BACKUP_STREAM_URL "$BACKUP_STREAM_URL"
     echo
     printf '%s=%q\n' ALSA_DEVICE "$ALSA_DEVICE"
     echo

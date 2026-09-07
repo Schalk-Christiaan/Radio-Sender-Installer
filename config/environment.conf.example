@@ -1,6 +1,7 @@
 STATION_NAME="Radio Orania"
 
 STREAM_URL="https://stream.radio.co/s7adaa782c/listen"
+BACKUP_STREAM_URL=""
 
 ALSA_DEVICE="default"
 

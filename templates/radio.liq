@@ -15,12 +15,21 @@ playlist_prefetch = __PLAYLIST_PREFETCH__
 alsa_device = "__ALSA_DEVICE__"
 
 # Radio stroom
+#
+# blank.strip maak die bron "onbeskikbaar" sodra dit stil raak, al bly
+# die HTTP-koppeling tegnies gekoppel - só skakel fallback() ook oor by
+# "dooie lug" (bv. 'n koderfout by die bron), nie net by 'n werklike
+# ontkoppeling nie.
 
 radio =
-  input.http(
-    self_sync=false,
-    radio_url
+  blank.strip(
+    input.http(
+      self_sync=false,
+      radio_url
+    )
   )
+
+# __BACKUP_RADIO_INSERT_POINT__
 
 # Musiek
 
@@ -65,9 +74,15 @@ main =
     track_sensitive=false,
     [
       radio,
+      __BACKUP_RADIO_ENTRY__
       backup_program
     ]
   )
+
+# Klankvlak-egalisering, sodat die stroom en plaaslike musiek nie skielik
+# harder/sagter as mekaar klink nie.
+
+main = normalize(main)
 
 # ALSA uitset
 
