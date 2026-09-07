@@ -29,4 +29,8 @@ if [ -f "$BASE_DIR/filebrowser/credentials.txt" ]; then
     chmod 600 "$BASE_DIR/filebrowser/credentials.txt"
 fi
 
+if [ -f "$BASE_DIR/config/radio-admin-credentials.txt" ]; then
+    chmod 600 "$BASE_DIR/config/radio-admin-credentials.txt"
+fi
+
 progress 100 "Klaar"

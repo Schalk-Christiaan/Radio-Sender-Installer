@@ -5,6 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 User=radio-orania
+Environment=HOME=/opt/radio-orania
 Restart=always
 RestartSec=5
 

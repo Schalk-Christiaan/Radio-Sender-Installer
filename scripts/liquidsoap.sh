@@ -24,6 +24,10 @@ cp \
     "$SCRIPT_DIR/../templates/radio.liq" \
     "$TARGET_FILE"
 
+if [ "$INSTALL_DASHBOARD" = "yes" ]; then
+    cat "$SCRIPT_DIR/../templates/radio-icecast.liq" >> "$TARGET_FILE"
+fi
+
 progress 50 "Vul konfigurasie in"
 
 sed -i "s|__STREAM_URL__|$(escape_sed_replacement "$STREAM_URL")|g" "$TARGET_FILE"
@@ -37,6 +41,11 @@ sed -i "s|__SWEEPER_WEIGHT__|$SWEEPER_WEIGHT|g" "$TARGET_FILE"
 sed -i "s|__PLAYLIST_RELOAD__|$PLAYLIST_RELOAD|g" "$TARGET_FILE"
 
 sed -i "s|__PLAYLIST_PREFETCH__|$PLAYLIST_PREFETCH|g" "$TARGET_FILE"
+
+if [ "$INSTALL_DASHBOARD" = "yes" ]; then
+    sed -i "s|__ICECAST_PORT__|$ICECAST_PORT|g" "$TARGET_FILE"
+    sed -i "s|__ICECAST_SOURCE_PASSWORD__|$(escape_sed_replacement "$ICECAST_SOURCE_PASSWORD")|g" "$TARGET_FILE"
+fi
 
 progress 75 "Verifieer konfigurasie"
 

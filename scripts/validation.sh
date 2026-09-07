@@ -256,6 +256,38 @@ if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
 fi
 
 #
+# Beheerpaneel-skerm
+#
+
+if [ "${INSTALL_DASHBOARD:-no}" = "yes" ]; then
+
+    if id radio-admin >/dev/null 2>&1; then
+        ok "radio-admin gebruiker bestaan"
+    else
+        warn "radio-admin gebruiker ontbreek"
+    fi
+
+    if command -v radio-dashboard >/dev/null 2>&1; then
+        ok "Beheerpaneel-skerm geïnstalleer"
+    else
+        warn "Beheerpaneel-skerm ontbreek"
+    fi
+
+    if [ -f /etc/sudoers.d/radio-admin ]; then
+        ok "radioctl-toegang vir radio-admin ingestel"
+    else
+        warn "radioctl-toegang vir radio-admin ontbreek"
+    fi
+
+    if systemctl is-active --quiet icecast2 2>/dev/null; then
+        ok "Monitor-aftakking (Icecast) loop"
+    else
+        warn "Monitor-aftakking (Icecast) loop nie"
+    fi
+
+fi
+
+#
 # Skyfspasie
 #
 

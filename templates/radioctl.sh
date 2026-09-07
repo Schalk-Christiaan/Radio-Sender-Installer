@@ -23,22 +23,45 @@ load_config() {
 cmd_status() {
     load_config
 
-    echo "Sender Naam   : ${STATION_NAME:-onbekend}"
-    echo "Stroom URL    : ${STREAM_URL:-onbekend}"
+    local green="" red="" bold="" reset=""
+    if [ -t 1 ]; then
+        green=$'\033[32m'
+        red=$'\033[31m'
+        bold=$'\033[1m'
+        reset=$'\033[0m'
+    fi
+
+    echo "${bold}Sender Naam${reset}   : ${STATION_NAME:-onbekend}"
+    echo "${bold}Stroom URL${reset}    : ${STREAM_URL:-onbekend}"
     echo
 
     for svc in radio-orania.service filebrowser.service radio-heartbeat.service radio-orania-restart.timer; do
         if [ -f "/etc/systemd/system/$svc" ]; then
             if systemctl is-active --quiet "$svc" 2>/dev/null; then
-                printf "%-28s %s\n" "$svc" "loop"
+                printf "%-28s %s\n" "$svc" "${green}loop${reset}"
             else
-                printf "%-28s %s\n" "$svc" "loop nie"
+                printf "%-28s %s\n" "$svc" "${red}loop nie${reset}"
             fi
         fi
     done
 
     echo
     df -h "$BASE_DIR" 2>/dev/null | awk 'NR==2 {print "Beskikbare skyfspasie: " $4}'
+}
+
+cmd_monitor_url() {
+    load_config
+
+    if [ "${INSTALL_DASHBOARD:-no}" != "yes" ]; then
+        echo "Monitor-aftakking is nie geaktiveer nie."
+        exit 1
+    fi
+
+    local ip
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    ip=${ip:-localhost}
+
+    echo "http://${ip}:${ICECAST_PORT}/monitor"
 }
 
 cmd_start()   { need_root "start";   systemctl start radio-orania.service; }
@@ -130,6 +153,7 @@ Gebruik: radioctl <opdrag>
   logs [-f]      Wys onlangse logs (-f om te volg)
   test-stream    Toets of die stroom URL bereikbaar is
   media          Wys File Browser toegangsbesonderhede
+  monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
   backup         Skep 'n rugsteun van die mediavouer
   reconfigure    Loop die opstelling-assistent weer
   update         Trek die jongste weergawe en herinstalleer
@@ -144,6 +168,7 @@ case "${1:-}" in
     logs)         shift; cmd_logs "${1:-}" ;;
     test-stream)  cmd_test_stream ;;
     media)        cmd_media ;;
+    monitor-url)  cmd_monitor_url ;;
     backup)       cmd_backup ;;
     reconfigure)  cmd_reconfigure ;;
     update)       cmd_update ;;

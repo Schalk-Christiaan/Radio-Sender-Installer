@@ -290,6 +290,24 @@ else
     RESTART_PUSH_URL=""
 
 fi
+
+#
+# Beheerpaneel
+#
+
+echo
+read -rp "Installeer beheerpaneel-skerm (radio-admin, SSH + fisiese skerm)? (Y/N) [N]: " DASHBOARD
+
+if [[ "$DASHBOARD" =~ ^[Yy]$ ]]; then
+    INSTALL_DASHBOARD="yes"
+    ICECAST_PORT="8008"
+    ICECAST_SOURCE_PASSWORD=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+else
+    INSTALL_DASHBOARD="no"
+    ICECAST_PORT="8008"
+    ICECAST_SOURCE_PASSWORD=""
+fi
+
 #
 # Opsomming
 #
@@ -330,6 +348,12 @@ if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
     fi
 else
     echo "Outo-restart     : Nee"
+fi
+
+if [ "$INSTALL_DASHBOARD" = "yes" ]; then
+    echo "Beheerpaneel     : Ja"
+else
+    echo "Beheerpaneel     : Nee"
 fi
 
 echo
@@ -387,6 +411,10 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' INSTALL_RESTART_TIMER "$INSTALL_RESTART_TIMER"
     printf '%s=%q\n' RESTART_SCHEDULE "$RESTART_SCHEDULE"
     printf '%s=%q\n' RESTART_PUSH_URL "$RESTART_PUSH_URL"
+    echo
+    printf '%s=%q\n' INSTALL_DASHBOARD "$INSTALL_DASHBOARD"
+    printf '%s=%q\n' ICECAST_PORT "$ICECAST_PORT"
+    printf '%s=%q\n' ICECAST_SOURCE_PASSWORD "$ICECAST_SOURCE_PASSWORD"
 } > "$CONFIG_DIR/environment.conf"
 
 install -m 600 \

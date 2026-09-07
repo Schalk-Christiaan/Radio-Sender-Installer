@@ -96,9 +96,32 @@ echo ">>> Verwyder File Browser"
 rm -f /usr/local/bin/filebrowser
 
 echo
-echo ">>> Verwyder beheerpaneel"
+echo ">>> Verwyder radioctl"
 
 rm -f /usr/local/bin/radioctl
+
+echo
+echo ">>> Verwyder monitor-aftakking"
+
+systemctl stop icecast2 2>/dev/null || true
+systemctl disable icecast2 2>/dev/null || true
+
+if [ -f /etc/default/icecast2 ]; then
+    sed -i 's/^ENABLE=.*/ENABLE=false/' /etc/default/icecast2
+fi
+
+rm -f /etc/icecast2/icecast.xml
+
+echo
+echo ">>> Verwyder beheerpaneel-skerm"
+
+rm -f /usr/local/bin/radio-dashboard
+rm -f /etc/sudoers.d/radio-admin
+rm -rf /etc/systemd/system/getty@tty1.service.d
+
+if id radio-admin >/dev/null 2>&1; then
+    userdel -r radio-admin 2>/dev/null || true
+fi
 
 echo
 echo ">>> Verwyder data"

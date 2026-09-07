@@ -14,6 +14,7 @@
 * File Browser vir media bestuur
 * Heartbeat ondersteuning
 * `radioctl` beheerpaneel vir status, herbegin, logs en opdatering
+* Opsionele beheerpaneel-skerm wat outomaties by SSH- of fisiese-skerm-aanmelding verskyn
 * Debian 13 ondersteuning
 * Eenvoudige installasie
 
@@ -140,6 +141,26 @@ radioctl update         Trek die jongste weergawe en herinstalleer
 
 ---
 
+## Beheerpaneel-skerm
+
+Opsioneel tydens installasie: 'n volskerm, outomaties-vernuwende beheerpaneel wat verskyn sodra jy aanmeld — hetsy via SSH, hetsy op 'n skerm wat fisies aan die toestel gekoppel is (tty1 word outomaties aangemeld).
+
+Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met slegs toegang tot `radioctl` via `sudo`. Die gebruiker en wagwoord word een keer gewys tydens installasie, en gestoor in:
+
+```text
+/opt/radio-orania/config/radio-admin-credentials.txt
+```
+
+Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` luister, `[M]` media-besonderhede, `[B]` rugsteun, `[Q]` verlaat na 'n gewone shell. 'n Lewendige ON AIR-aanduiding en klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie.
+
+### Luister
+
+`[P]` speel presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Druk `[P]` weer om te stop. (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
+
+Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur.
+
+---
+
 ## Logs
 
 Installer:
@@ -178,7 +199,7 @@ Dit verwyder:
 * File Browser diens
 * Heartbeat
 * Outo-restart timer
-* `radioctl` beheerpaneel
+* `radioctl` en die beheerpaneel-skerm (insluitend die `radio-admin` gebruiker)
 * Die `radio-orania` diens-gebruiker
 * Alle Radio Orania data
 
@@ -200,6 +221,7 @@ Voltooi:
 * Uninstaller
 * Toegewyde, onbevoorregte diens-gebruiker
 * `radioctl` beheerpaneel
+* Opsionele beheerpaneel-skerm (SSH + fisiese skerm)
 * ShellCheck CI
 
 ### Beplan vir V1.1

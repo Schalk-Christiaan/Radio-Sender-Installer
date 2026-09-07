@@ -138,6 +138,8 @@ run_step "Skep diens-gebruiker" "$SCRIPT_DIR/scripts/user.sh"
 
 run_step "Skep vouers" "$SCRIPT_DIR/scripts/directories.sh"
 
+run_step "Stel monitor-aftakking op" "$SCRIPT_DIR/scripts/icecast.sh"
+
 run_step "Konfigureer Liquidsoap" "$SCRIPT_DIR/scripts/liquidsoap.sh"
 
 if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
@@ -154,7 +156,11 @@ elif [ -f /etc/systemd/system/radio-orania-restart.timer ]; then
     run_step "Verwyder outo-restart timer" "$SCRIPT_DIR/scripts/uninstall_restarttimer.sh"
 fi
 
-run_step "Installeer beheerpaneel" "$SCRIPT_DIR/scripts/controlpanel.sh"
+run_step "Installeer radioctl" "$SCRIPT_DIR/scripts/controlpanel.sh"
+
+if [ "$INSTALL_DASHBOARD" = "yes" ]; then
+    run_step "Installeer beheerpaneel-skerm" "$SCRIPT_DIR/scripts/dashboard.sh"
+fi
 
 run_step "Berg installer vir latere gebruik" "$SCRIPT_DIR/scripts/persist_installer.sh"
 
