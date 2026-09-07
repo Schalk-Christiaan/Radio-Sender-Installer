@@ -133,11 +133,14 @@ radioctl logs [-f]      Wys onlangse logs (-f om te volg)
 radioctl test-stream    Toets of die stroom URL bereikbaar is
 radioctl media          Wys File Browser toegangsbesonderhede
 radioctl backup         Skep 'n rugsteun van die mediavouer
+radioctl set <S> <W>    Verander 'n instelling (STREAM_URL, MUSIC_WEIGHT, SWEEPER_WEIGHT)
+radioctl passwords      Wys al die gestoorde wagwoorde (File Browser, beheerpaneel, monitor)
 radioctl reconfigure    Loop die opstelling-assistent weer
 radioctl update         Trek die jongste weergawe en herinstalleer
+radioctl uninstall      Verwyder die hele installasie
 ```
 
-`start`/`stop`/`restart`/`backup`/`reconfigure`/`update` vereis root (`sudo radioctl ...`).
+`start`/`stop`/`restart`/`backup`/`set`/`passwords`/`reconfigure`/`update`/`uninstall` vereis root (`sudo radioctl ...`).
 
 ---
 
@@ -151,11 +154,19 @@ Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met sl
 /opt/radio-orania/config/radio-admin-credentials.txt
 ```
 
-Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` luister, `[M]` media-besonderhede, `[B]` rugsteun, `[Q]` verlaat na 'n gewone shell. 'n Lewendige ON AIR-aanduiding en klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie.
+Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` luister, `[M]` media-besonderhede, `[B]` rugsteun, `[C]` instellings, `[Q]` verlaat na 'n gewone shell. 'n Lewendige ON AIR-aanduiding en klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie.
 
 ### Luister
 
 `[P]` speel presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Druk `[P]` weer om te stop. (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
+
+### Instellings
+
+`[C]` gee toegang tot 'n klein kieslys om fisies op die dashboard te verander, sonder om die opstelling-assistent oor te doen:
+
+* Stroom URL en musiek/sweeper-verhouding verander (word dadelik toegepas en die diens herbegin)
+* Al die gestoorde wagwoorde sien (File Browser, beheerpaneel, monitor)
+* Sagteware opdateer, herkonfigureer, of die hele installasie verwyder (met bevestiging)
 
 Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur.
 

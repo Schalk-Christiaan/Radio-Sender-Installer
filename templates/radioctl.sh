@@ -23,8 +23,10 @@ load_config() {
 cmd_status() {
     load_config
 
+    local force="${1:-}"
+
     local green="" red="" bold="" reset=""
-    if [ -t 1 ]; then
+    if [ -t 1 ] || [ "$force" = "--color" ]; then
         green=$'\033[32m'
         red=$'\033[31m'
         bold=$'\033[1m'
@@ -115,6 +117,106 @@ cmd_backup() {
     echo "Rugsteun gestoor: $dest"
 }
 
+cmd_set() {
+    need_root "set <SLEUTEL> <WAARDE>"
+
+    local key="${1:-}"
+    local value="${2:-}"
+
+    if [ -z "$key" ] || [ -z "$value" ]; then
+        echo "Gebruik: radioctl set <STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT> <waarde>"
+        exit 1
+    fi
+
+    case "$key" in
+        STREAM_URL)
+            if [[ ! "$value" =~ ^https?:// ]] ||
+               [[ "$value" =~ [\"\'\`\;\\] ]] ||
+               [[ "$value" =~ [[:space:]] ]]; then
+                echo "Ongeldige URL. Moet met http:// of https:// begin, geen aanhalingstekens/spasies nie."
+                exit 1
+            fi
+            ;;
+        MUSIC_WEIGHT|SWEEPER_WEIGHT)
+            if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ]; then
+                echo "Moet 'n positiewe heelgetal wees."
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Onbekende of nie-verstelbare instelling: $key"
+            echo "Beskikbaar: STREAM_URL, MUSIC_WEIGHT, SWEEPER_WEIGHT"
+            exit 1
+            ;;
+    esac
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "Konfigurasie ontbreek: $CONFIG_FILE"
+        exit 1
+    fi
+
+    local tmp
+    tmp=$(mktemp)
+
+    grep -v "^${key}=" "$CONFIG_FILE" > "$tmp"
+    printf '%s=%q\n' "$key" "$value" >> "$tmp"
+
+    install -m 600 -o radio-orania -g audio "$tmp" "$CONFIG_FILE"
+    rm -f "$tmp"
+
+    if [ -x "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
+        # persist_installer.sh verwyder doelbewus die installer se eie
+        # config-kopie (om nie geheime te verdubbel nie) - herstel dit
+        # net tydelik sodat liquidsoap.sh die nuwe waarde kan lees.
+        mkdir -p "$INSTALLER_DIR/config"
+        cp "$CONFIG_FILE" "$INSTALLER_DIR/config/environment.conf"
+        bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null
+        rm -f "$INSTALLER_DIR/config/environment.conf"
+        systemctl restart radio-orania.service
+        echo "$key opgedateer na '$value' en toegepas."
+    else
+        echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
+        echo "Loop 'sudo radioctl reconfigure' om dit toe te pas."
+    fi
+}
+
+cmd_passwords() {
+    need_root "passwords"
+
+    load_config
+
+    echo "=== Wagwoorde ==="
+    echo
+
+    if [ -f "$BASE_DIR/filebrowser/credentials.txt" ]; then
+        echo "-- File Browser --"
+        cat "$BASE_DIR/filebrowser/credentials.txt"
+        echo
+    fi
+
+    if [ -f "$BASE_DIR/config/radio-admin-credentials.txt" ]; then
+        echo "-- Beheerpaneel (radio-admin) --"
+        cat "$BASE_DIR/config/radio-admin-credentials.txt"
+        echo
+    fi
+
+    if [ -n "${ICECAST_SOURCE_PASSWORD:-}" ]; then
+        echo "-- Monitor-aftakking (Icecast bron-wagwoord) --"
+        echo "$ICECAST_SOURCE_PASSWORD"
+    fi
+}
+
+cmd_uninstall() {
+    need_root "uninstall"
+
+    if [ ! -x "$INSTALLER_DIR/uninstall.sh" ]; then
+        echo "Uninstaller nie gevind by $INSTALLER_DIR nie."
+        exit 1
+    fi
+
+    bash "$INSTALLER_DIR/uninstall.sh"
+}
+
 cmd_reconfigure() {
     need_root "reconfigure"
 
@@ -155,13 +257,16 @@ Gebruik: radioctl <opdrag>
   media          Wys File Browser toegangsbesonderhede
   monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
   backup         Skep 'n rugsteun van die mediavouer
+  set <S> <W>    Verander 'n instelling (STREAM_URL, MUSIC_WEIGHT, SWEEPER_WEIGHT)
+  passwords      Wys al die gestoorde wagwoorde
   reconfigure    Loop die opstelling-assistent weer
   update         Trek die jongste weergawe en herinstalleer
+  uninstall      Verwyder die hele installasie
 EOF
 }
 
 case "${1:-}" in
-    status)       cmd_status ;;
+    status)       shift; cmd_status "${1:-}" ;;
     start)        cmd_start ;;
     stop)         cmd_stop ;;
     restart)      cmd_restart ;;
@@ -170,8 +275,11 @@ case "${1:-}" in
     media)        cmd_media ;;
     monitor-url)  cmd_monitor_url ;;
     backup)       cmd_backup ;;
+    set)          shift; cmd_set "${1:-}" "${2:-}" ;;
+    passwords)    cmd_passwords ;;
     reconfigure)  cmd_reconfigure ;;
     update)       cmd_update ;;
+    uninstall)    cmd_uninstall ;;
     ""|-h|--help|help) usage ;;
     *)
         echo "Onbekende opdrag: ${1:-}"
