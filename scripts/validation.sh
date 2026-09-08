@@ -267,7 +267,7 @@ if [ "${INSTALL_DASHBOARD:-no}" = "yes" ]; then
         warn "radio-admin gebruiker ontbreek"
     fi
 
-    if command -v radio-dashboard >/dev/null 2>&1; then
+    if command -v radio-dash >/dev/null 2>&1; then
         ok "Beheerpaneel-skerm geïnstalleer"
     else
         warn "Beheerpaneel-skerm ontbreek"

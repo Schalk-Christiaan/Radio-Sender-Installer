@@ -115,7 +115,7 @@ rm -f /etc/icecast2/icecast.xml
 echo
 echo ">>> Verwyder beheerpaneel-skerm"
 
-rm -f /usr/local/bin/radio-dashboard
+rm -f /usr/local/bin/radio-dash
 rm -f /etc/sudoers.d/radio-admin
 rm -rf /etc/systemd/system/getty@tty1.service.d
 

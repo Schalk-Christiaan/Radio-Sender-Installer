@@ -53,7 +53,7 @@ progress 60 "Installeer beheerpaneel-skerm"
 
 install -m 755 \
     "$SCRIPT_DIR/../templates/radio-dashboard.sh" \
-    /usr/local/bin/radio-dashboard
+    /usr/local/bin/radio-dash
 
 progress 75 "Koppel aan aanmelding"
 
@@ -62,7 +62,7 @@ BASH_PROFILE="/home/$ADMIN_USER/.bash_profile"
 cat > "$BASH_PROFILE" << 'EOF'
 if [ -t 0 ] && [ -z "$RADIO_DASHBOARD_ACTIVE" ]; then
     export RADIO_DASHBOARD_ACTIVE=1
-    /usr/local/bin/radio-dashboard
+    /usr/local/bin/radio-dash
 fi
 EOF
 

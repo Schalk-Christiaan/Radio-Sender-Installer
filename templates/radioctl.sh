@@ -119,6 +119,15 @@ cmd_monitor_url() {
     echo "http://${ip}:${ICECAST_PORT}/monitor"
 }
 
+cmd_dash() {
+    if [ ! -x /usr/local/bin/radio-dash ]; then
+        echo "Beheerpaneel-skerm is nie geïnstalleer nie."
+        exit 1
+    fi
+
+    exec /usr/local/bin/radio-dash
+}
+
 cmd_start()   { need_root "start";   systemctl start radio-orania.service; }
 cmd_stop()    { need_root "stop";    systemctl stop radio-orania.service; }
 cmd_restart() { need_root "restart"; systemctl restart radio-orania.service; }
@@ -446,6 +455,7 @@ Radio Orania Beheerpaneel
 
 Gebruik: radioctl <opdrag>
 
+  dash           Bring die beheerpaneel-skerm terug
   status         Wys huidige status van alle dienste
   start          Begin die radio-diens
   stop           Stop die radio-diens
@@ -467,6 +477,7 @@ EOF
 }
 
 case "${1:-}" in
+    dash)         cmd_dash ;;
     status)       shift; cmd_status "${1:-}" ;;
     start)        cmd_start ;;
     stop)         cmd_stop ;;

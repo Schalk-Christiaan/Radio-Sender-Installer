@@ -131,6 +131,7 @@ Die URL, gebruiker en wagwoord word gestoor in:
 Na installasie is 'n `radioctl` opdrag beskikbaar om die sender te bestuur sonder om `systemctl`/`journalctl` paaie te onthou:
 
 ```text
+radioctl dash           Bring die beheerpaneel-skerm terug (bv. ná 'n shell-escape)
 radioctl status         Wys status van al die dienste, sender naam en stroom URL
 radioctl start          Begin die radio-diens
 radioctl stop           Stop die radio-diens
