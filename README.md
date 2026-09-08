@@ -167,7 +167,7 @@ Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met sl
 /opt/radio-orania/config/radio-admin-credentials.txt
 ```
 
-Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan (`radioctl status`-inligting sluit die aktiewe bron en totale aanlyn-tyd in). Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` monitor aan/af, `[M]` media-besonderhede, `[B]` rugsteun, `[C]` instellings, `[Q]` verlaat na 'n gewone shell. Die opdrag-opsies staan in netjiese, belynde kolomme wat ook by die skermbreedte aanpas. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
+Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan. Die STATUS-afdeling wys `radioctl status`-inligting (aktiewe bron, totale aanlyn-tyd) plus stelsel-inligting wat elke verversing regstreeks bygewerk word — netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue en CPU-temperatuur. Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` monitor aan/af, `[M]` media-besonderhede, `[B]` rugsteun, `[I]` instellings, `[G]` gevaarlike opsies, `[Q]` verlaat na 'n gewone shell. Die opdrag-opsies staan in netjiese, belynde kolomme wat ook by die skermbreedte aanpas. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
 
 ### Volskerm op die fisiese skerm
 
@@ -191,14 +191,12 @@ Om die lettertipe self weer te verander (groter/kleiner), gebruik `sudo dpkg-rec
 
 ### Instellings
 
-`[C]` skakel die hoofskerm oor na 'n kieslys binne-in DIESELFDE skerm (geen aparte "clear" of afsonderlike venster nie) om fisies te verander, sonder om die opstelling-assistent oor te doen. Die opsies is in vier oortjies gegroepeer, wat gewissel kan word met die ◄/► pyltjies OF deur direk daarop te klik (SGR-muisverslagdoening - werk oor SSH/'n gewone terminaal-emulator; op die kaal fisiese konsole (tty1, geen muis-daemon nie) doen 'n klik eenvoudig niks, maar pyltjies werk daar steeds):
+INSTELLINGS en GEVAARLIK leef altyd op die hoofskerm — geen aparte skerm, oortjies of muisklik meer nie. `[I]` vou die INSTELLINGS-opsies reg op dieselfde skerm oop/toe, en `[G]` doen dieselfde vir GEVAARLIK:
 
-* **RADIO** (wat die luisteraar hoor) — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, plus die regstreekse netwerk-buffer van die aktiewe bron
-* **INSTELLINGS** (agter-die-skerms konfigurasie) — musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
-* **INLIGTING** (leesalleen) — aanlyn-tyd, data-verbruik vandag/hierdie maand, CPU-las, geheue, skyfspasie, CPU-temperatuur
-* **GEVAARLIK** — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
+* **INSTELLINGS** (`[I]`) — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
+* **GEVAARLIK** (`[G]`) — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
 
-Al die "verander"-opsies word dadelik toegepas en herbegin die diens waar nodig. Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
+Elke opsie is genommer (bv. `1) Stroom URL`); tik die nommer en druk Enter om dit te verander. Al die "verander"-opsies word dadelik toegepas en herbegin die diens waar nodig. Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
 
 Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur. Die regstreekse netwerk-buffer en data-verbruik-syfers vereis onderskeidelik 'n plaaslike Liquidsoap-beheersocket (`socat`, slegs plaaslik bereikbaar - geen netwerk-poort nie) en `vnstat` — albei word saam met die beheerpaneel-skerm geïnstalleer.
 
