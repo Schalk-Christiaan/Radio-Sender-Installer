@@ -5,6 +5,7 @@ set -euo pipefail
 BASE_DIR="/opt/radio-orania"
 CONFIG_FILE="$BASE_DIR/config/environment.conf"
 INSTALLER_DIR="$BASE_DIR/installer"
+SOCKET_FILE="$BASE_DIR/liquidsoap/socket"
 
 contains_shell_metachars() {
     case "$1" in
@@ -56,6 +57,37 @@ cmd_status() {
 
     echo "${bold}Sender Naam${reset}   : ${STATION_NAME:-onbekend}"
     echo "${bold}Stroom URL${reset}    : ${STREAM_URL:-onbekend}"
+
+    local active_label="onbekend" active_url=""
+    if [ -f "$BASE_DIR/liquidsoap/active_source" ]; then
+        case "$(cat "$BASE_DIR/liquidsoap/active_source" 2>/dev/null)" in
+            primer)    active_label="Hoofstroom";       active_url="${STREAM_URL:-}" ;;
+            rugsteun)  active_label="Rugsteun-stroom";  active_url="${BACKUP_STREAM_URL:-}" ;;
+            noodmusiek) active_label="Noodmusiek (plaaslik)" ;;
+        esac
+    fi
+    if [ -n "$active_url" ]; then
+        echo "${bold}Aktiewe Bron${reset}  : ${active_label} (${active_url})"
+    else
+        echo "${bold}Aktiewe Bron${reset}  : ${active_label}"
+    fi
+
+    local uptime_str=""
+    if systemctl is-active --quiet radio-orania.service 2>/dev/null; then
+        local started
+        started=$(systemctl show radio-orania.service -p ActiveEnterTimestamp --value 2>/dev/null)
+        if [ -n "$started" ] && [ "$started" != "n/a" ]; then
+            local started_ts now_ts elapsed
+            started_ts=$(date -d "$started" +%s 2>/dev/null || echo "")
+            if [ -n "$started_ts" ]; then
+                now_ts=$(date +%s)
+                elapsed=$(( now_ts - started_ts ))
+                uptime_str="$(( elapsed / 3600 ))h $(( (elapsed % 3600) / 60 ))m"
+            fi
+        fi
+    fi
+    echo "${bold}Aanlyn${reset}        : ${uptime_str:-nie aktief nie}"
+
     echo
 
     for svc in radio-orania.service filebrowser.service radio-heartbeat.service radio-orania-restart.timer; do
@@ -138,7 +170,97 @@ cmd_backup() {
     echo "Rugsteun gestoor: $dest"
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL"
+cmd_bufferstat() {
+    if ! command -v socat >/dev/null 2>&1; then
+        echo "Netwerk-buffer   : onbekend (socat nie geïnstalleer nie)"
+        return
+    fi
+
+    if [ ! -S "$SOCKET_FILE" ]; then
+        echo "Netwerk-buffer   : onbekend (radio loop nie, of nie geaktiveer nie)"
+        return
+    fi
+
+    local ns=""
+    if [ -f "$BASE_DIR/liquidsoap/active_source" ]; then
+        case "$(cat "$BASE_DIR/liquidsoap/active_source" 2>/dev/null)" in
+            primer)    ns="radio_input" ;;
+            rugsteun)  ns="backup_input" ;;
+        esac
+    fi
+
+    if [ -z "$ns" ]; then
+        echo "Netwerk-buffer   : n.v.t. (noodmusiek is op-lug)"
+        return
+    fi
+
+    # "quit" ná die opdrag laat Liquidsoap self die koppeling toemaak sodra
+    # dit geantwoord het; "timeout" is 'n bykomende slot-wagter sodat 'n
+    # onverwagte hang nooit die dashboard se herteken-lus kan blokkeer nie.
+    local resp
+    resp=$(printf '%s\nquit\n' "${ns}.buffer_length" \
+        | timeout 2 socat - "UNIX-CONNECT:${SOCKET_FILE}" 2>/dev/null \
+        | sed -n '1p') || true
+
+    if [[ "$resp" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        printf 'Netwerk-buffer   : %.1fs\n' "$resp"
+    else
+        echo "Netwerk-buffer   : onbekend"
+    fi
+}
+
+cmd_datausage() {
+    if ! command -v vnstat >/dev/null 2>&1; then
+        echo "Data verbruik    : onbekend (vnstat nie geïnstalleer nie)"
+        return
+    fi
+
+    local iface line today month
+    iface=$(ip route show default 2>/dev/null | awk '{print $5; exit}') || true
+
+    if [ -n "$iface" ]; then
+        line=$(timeout 3 vnstat --oneline -i "$iface" 2>/dev/null) || true
+    else
+        line=$(timeout 3 vnstat --oneline 2>/dev/null) || true
+    fi
+
+    if [ -z "$line" ]; then
+        echo "Data verbruik    : onbekend"
+        return
+    fi
+
+    # --oneline se veldvolgorde (vnstat-dokumentasie): 6=totaal vandag,
+    # 11=totaal hierdie maand.
+    today=$(printf '%s' "$line" | awk -F';' '{print $6}') || true
+    month=$(printf '%s' "$line" | awk -F';' '{print $11}') || true
+
+    echo "Data verbruik    : Vandag ${today:-onbekend}   Maand ${month:-onbekend}"
+}
+
+cmd_sysstats() {
+    local load
+    load=$(awk '{print $1, $2, $3}' /proc/loadavg 2>/dev/null) || true
+    echo "CPU-las (1/5/15m): ${load:-onbekend}"
+
+    if command -v free >/dev/null 2>&1; then
+        free -h | awk '/^Mem:/ {print "Geheue           : " $3 " / " $2 " in gebruik"}'
+    else
+        echo "Geheue           : onbekend"
+    fi
+
+    df -h "$BASE_DIR" 2>/dev/null | awk 'NR==2 {print "Skyfspasie       : " $3 " / " $2 " in gebruik (" $4 " beskikbaar)"}'
+
+    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+        local temp_raw temp_c
+        temp_raw=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null) || true
+        temp_c=$(awk -v t="${temp_raw:-}" 'BEGIN { if (t != "") printf "%.1f", t / 1000 }') || true
+        echo "CPU-temperatuur  : ${temp_c:-onbekend}°C"
+    else
+        echo "CPU-temperatuur  : onbekend"
+    fi
+}
+
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -182,7 +304,7 @@ cmd_set() {
                 exit 1
             fi
             ;;
-        MUSIC_WEIGHT|SWEEPER_WEIGHT)
+        MUSIC_WEIGHT|SWEEPER_WEIGHT|STREAM_BUFFER_MAX)
             if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ]; then
                 echo "Moet 'n positiewe heelgetal wees."
                 exit 1
@@ -222,7 +344,7 @@ cmd_set() {
     rm -f "$tmp"
 
     case "$key" in
-        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE)
+        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE|STREAM_BUFFER_MAX)
             if [ ! -x "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null; then
@@ -333,6 +455,9 @@ Gebruik: radioctl <opdrag>
   media          Wys File Browser toegangsbesonderhede
   monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
   backup         Skep 'n rugsteun van die mediavouer
+  bufferstat     Wys die regstreekse netwerk-buffer van die aktiewe bron
+  datausage      Wys data-verbruik vandag/hierdie maand (vnstat)
+  sysstats       Wys CPU-las, geheue, skyfspasie en CPU-temperatuur
   set <S> <W>    Verander 'n instelling ($SETTABLE_KEYS)
   passwords      Wys al die gestoorde wagwoorde
   reconfigure    Loop die opstelling-assistent weer
@@ -351,6 +476,9 @@ case "${1:-}" in
     media)        cmd_media ;;
     monitor-url)  cmd_monitor_url ;;
     backup)       cmd_backup ;;
+    bufferstat)   cmd_bufferstat ;;
+    datausage)    cmd_datausage ;;
+    sysstats)     cmd_sysstats ;;
     set)          shift; cmd_set "$@" ;;
     passwords)    cmd_passwords ;;
     reconfigure)  cmd_reconfigure ;;

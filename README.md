@@ -11,6 +11,7 @@
 * Outomatiese failover na noodmusiek (insluitend stilte-opsporing - skakel ook oor as 'n stroom "dooie lug" uitstuur, nie net by 'n werklike ontkoppeling nie)
 * Outomatiese terugskakeling na die stroom
 * Klankvlak-egalisering tussen stroom en plaaslike musiek
+* Begrensde skok-buffer (instelbaar) wat verhoed dat 'n FM-vertraging oor lang looptye onbeperk opbou
 * ALSA klankuitset
 * Systemd diens wat as 'n toegewyde, onbevoorregte gebruiker loop
 * File Browser vir media bestuur
@@ -29,6 +30,9 @@
              (opsioneel af/stil)  (opsioneel af/stil)
                            │
                            ▼
+                 Skok-buffer (begrens vertraging)
+                           │
+                           ▼
                       Liquidsoap
                            │
                            ▼
@@ -44,7 +48,11 @@
                      FM Sender
 ```
 
-Elke bron (hoofstroom en rugsteun-stroom) word deurlopend vir stilte gemonitor - as een "dooie lug" uitstuur (bv. 'n koderfout by die bron) terwyl dit tegnies nog gekoppel is, skakel Liquidsoap outomaties na die volgende bron in die ry oor.
+Elke bron (hoofstroom en rugsteun-stroom) word deurlopend vir stilte gemonitor - as een "dooie lug" uitstuur (bv. 'n koderfout by die bron) terwyl dit tegnies nog gekoppel is, skakel Liquidsoap outomaties na die volgende bron in die ry oor. `radioctl status` en die beheerpaneel-skerm wys watter bron op enige oomblik werklik op-lug is.
+
+### Waarom FM-vertraging oor tyd kan opbou
+
+Die netwerkstroom en die rekenaar se klankkaart loop nooit op presies dieselfde klok nie; oor ure of dae kan 'n klein verskil geleidelik opbou tot 'n merkbare vertraging (bv. 2 minute) op die FM-uitsending, en 'n herbegin van die rekenaar stel dit weer op nul. Om dit te voorkom word elke netwerkstroom deur 'n begrensde skok-buffer gestuur ("Maksimum stroom-buffer" - instelbaar via Instellings of `radioctl set STREAM_BUFFER_MAX <sekondes>`): sodra die buffer die ingestelde maksimum oorskry, laat Liquidsoap outomaties 'n bietjie oudio val om weer by te kom, i.p.v. dat die vertraging onbeperk bly opbou.
 
 ---
 
@@ -131,7 +139,13 @@ radioctl logs [-f]      Wys onlangse logs (-f om te volg)
 radioctl test-stream    Toets of die stroom URL bereikbaar is
 radioctl media          Wys File Browser toegangsbesonderhede
 radioctl backup         Skep 'n rugsteun van die mediavouer
-radioctl set <S> <W>    Verander 'n instelling (STREAM_URL, MUSIC_WEIGHT, SWEEPER_WEIGHT)
+radioctl monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
+radioctl bufferstat     Wys die regstreekse netwerk-buffer van die aktiewe bron
+radioctl datausage      Wys data-verbruik vandag/hierdie maand (vnstat)
+radioctl sysstats       Wys CPU-las, geheue, skyfspasie en CPU-temperatuur
+radioctl set <S> <W>    Verander 'n instelling (STREAM_URL, BACKUP_STREAM_URL, MUSIC_WEIGHT,
+                        SWEEPER_WEIGHT, ALSA_DEVICE, STATION_NAME, HEARTBEAT_URL,
+                        STREAM_BUFFER_MAX)
 radioctl passwords      Wys al die gestoorde wagwoorde (File Browser, beheerpaneel, monitor)
 radioctl reconfigure    Loop die opstelling-assistent weer
 radioctl update         Trek die jongste weergawe en herinstalleer
@@ -152,23 +166,40 @@ Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met sl
 /opt/radio-orania/config/radio-admin-credentials.txt
 ```
 
-Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` luister, `[M]` media-besonderhede, `[B]` rugsteun, `[C]` instellings, `[Q]` verlaat na 'n gewone shell. 'n Lewendige ON AIR-aanduiding en klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie.
+Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan (`radioctl status`-inligting sluit die aktiewe bron en totale aanlyn-tyd in). Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` monitor aan/af, `[M]` media-besonderhede, `[B]` rugsteun, `[C]` instellings, `[Q]` verlaat na 'n gewone shell. Die opdrag-opsies staan in netjiese, belynde kolomme wat ook by die skermbreedte aanpas. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
 
-### Luister
+### Volskerm op die fisiese skerm
 
-`[P]` speel presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Druk `[P]` weer om te stop. (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
+Die Linux-teks-konsole (tty1) gebruik gewoonlik 'n groot verstek-lettertipe wat op 'n breë monitor net 'n klein deel van die skerm benut. Wanneer die beheerpaneel-skerm geïnstalleer word, stel die installer outomaties 'n baie kleiner konsole-lettertipe in (Terminus 12x6), sodat aansienlik meer kolomme en reëls op dieselfde fisiese skerm pas — die dashboard se bestaande aanpas-logika (hierbo) benut dit outomaties, sonder verdere opstelling.
+
+As die skerm steeds nie die volle breedte benut nie (raar op moderne hardeware, maar moontlik as die konsole nie op die skerm se volle native resolusie loop nie), kan 'n GRUB-kernparameter dit regstel — pas die resolusie by jou eie skerm aan:
+
+```bash
+sudo nano /etc/default/grub
+# Voeg by GRUB_CMDLINE_LINUX_DEFAULT, bv:
+#   GRUB_CMDLINE_LINUX_DEFAULT="video=1920x1080@60"
+sudo update-grub
+sudo reboot
+```
+
+Om die lettertipe self weer te verander (groter/kleiner), gebruik `sudo dpkg-reconfigure console-setup`.
+
+### Monitor
+
+`[P]` speel presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Druk `[P]` weer om te stop (doelbewus anders benoem en gekleur as `[T]` Stop, wat die werklike uitsending stop). (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
 
 ### Instellings
 
-`[C]` gee toegang tot 'n klein kieslys om fisies op die dashboard te verander, sonder om die opstelling-assistent oor te doen:
+`[C]` skakel die hoofskerm oor na 'n kieslys binne-in DIESELFDE skerm (geen aparte "clear" of afsonderlike venster nie) om fisies te verander, sonder om die opstelling-assistent oor te doen. Die opsies is in vier oortjies gegroepeer, wat gewissel kan word met die ◄/► pyltjies OF deur direk daarop te klik (SGR-muisverslagdoening - werk oor SSH/'n gewone terminaal-emulator; op die kaal fisiese konsole (tty1, geen muis-daemon nie) doen 'n klik eenvoudig niks, maar pyltjies werk daar steeds):
 
-* Stroom URL (primêr en rugsteun), musiek/sweeper-verhouding, stasienaam, ALSA-klanktoestel en Heartbeat URL verander (word dadelik toegepas en die diens herbegin waar nodig)
-* Al die gestoorde wagwoorde sien (File Browser, beheerpaneel, monitor)
-* Sagteware opdateer, herkonfigureer, of die hele installasie verwyder (met bevestiging)
+* **RADIO** (wat die luisteraar hoor) — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, plus die regstreekse netwerk-buffer van die aktiewe bron
+* **INSTELLINGS** (agter-die-skerms konfigurasie) — musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
+* **INLIGTING** (leesalleen) — aanlyn-tyd, data-verbruik vandag/hierdie maand, CPU-las, geheue, skyfspasie, CPU-temperatuur
+* **GEVAARLIK** — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
 
-Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
+Al die "verander"-opsies word dadelik toegepas en herbegin die diens waar nodig. Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
 
-Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur.
+Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur. Die regstreekse netwerk-buffer en data-verbruik-syfers vereis onderskeidelik 'n plaaslike Liquidsoap-beheersocket (`socat`, slegs plaaslik bereikbaar - geen netwerk-poort nie) en `vnstat` — albei word saam met die beheerpaneel-skerm geïnstalleer.
 
 ---
 

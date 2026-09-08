@@ -14,18 +14,30 @@ playlist_prefetch = __PLAYLIST_PREFETCH__
 
 alsa_device = "__ALSA_DEVICE__"
 
+stream_buffer_max = __STREAM_BUFFER_MAX__
+
 # Radio stroom
 #
 # blank.strip maak die bron "onbeskikbaar" sodra dit stil raak, al bly
 # die HTTP-koppeling tegnies gekoppel - só skakel fallback() ook oor by
 # "dooie lug" (bv. 'n koderfout by die bron), nie net by 'n werklike
 # ontkoppeling nie.
+#
+# buffer() met 'n begrensde max= voorkom dat 'n klein klok-verskil tussen
+# die netwerkstroom en die klankkaart oor ure/dae onbeperk opbou tot 'n
+# merkbare FM-vertraging - sodra die buffer die maksimum oorskry, laat
+# Liquidsoap outomaties 'n bietjie oudio val om weer by te kom, i.p.v. dat
+# net 'n herbegin van die rekenaar dit regstel.
 
 radio =
-  blank.strip(
-    input.http(
-      self_sync=false,
-      radio_url
+  buffer(
+    max=stream_buffer_max,
+    blank.strip(
+      input.http(
+        self_sync=false,
+        id="radio_input",
+        radio_url
+      )
     )
   )
 
@@ -90,3 +102,29 @@ output.alsa(
   device=alsa_device,
   main
 )
+
+# Aktiewe-bron opsporing
+#
+# Skryf elke 2 sekondes na 'n lêer watter bron werklik op-lug is, met
+# dieselfde volgorde-logika as die fallback() hierbo - radioctl en die
+# dashboard lees hierdie lêer om die aktiewe bron te wys sonder om
+# Liquidsoap self te moet bevraagteken.
+
+def check_active_source()
+  active =
+    if radio.is_ready() then
+      "primer"
+# __ACTIVE_SOURCE_BACKUP_BRANCH__
+    else
+      "noodmusiek"
+    end
+  file.write(
+    data=active,
+    atomic=true,
+    temp_dir="/opt/radio-orania/liquidsoap",
+    "/opt/radio-orania/liquidsoap/active_source"
+  )
+  2.0
+end
+
+thread.run.recurrent(delay=2.0, check_active_source)

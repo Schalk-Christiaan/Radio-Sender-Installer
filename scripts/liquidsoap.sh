@@ -26,6 +26,7 @@ cp \
 
 if [ "$INSTALL_DASHBOARD" = "yes" ]; then
     cat "$SCRIPT_DIR/../templates/radio-icecast.liq" >> "$TARGET_FILE"
+    cat "$SCRIPT_DIR/../templates/radio-server-socket.liq" >> "$TARGET_FILE"
 fi
 
 if [ -n "$BACKUP_STREAM_URL" ]; then
@@ -33,6 +34,12 @@ if [ -n "$BACKUP_STREAM_URL" ]; then
 fi
 
 sed -i "/^# __BACKUP_RADIO_INSERT_POINT__$/d" "$TARGET_FILE"
+
+if [ -n "$BACKUP_STREAM_URL" ]; then
+    sed -i "/^# __ACTIVE_SOURCE_BACKUP_BRANCH__$/r $SCRIPT_DIR/../templates/radio-active-source-backup-branch.liq" "$TARGET_FILE"
+fi
+
+sed -i "/^# __ACTIVE_SOURCE_BACKUP_BRANCH__$/d" "$TARGET_FILE"
 
 progress 50 "Vul konfigurasie in"
 
@@ -47,6 +54,8 @@ sed -i "s|__SWEEPER_WEIGHT__|$SWEEPER_WEIGHT|g" "$TARGET_FILE"
 sed -i "s|__PLAYLIST_RELOAD__|$PLAYLIST_RELOAD|g" "$TARGET_FILE"
 
 sed -i "s|__PLAYLIST_PREFETCH__|$PLAYLIST_PREFETCH|g" "$TARGET_FILE"
+
+sed -i "s|__STREAM_BUFFER_MAX__|${STREAM_BUFFER_MAX:-10}.0|g" "$TARGET_FILE"
 
 if [ "$INSTALL_DASHBOARD" = "yes" ]; then
     sed -i "s|__ICECAST_PORT__|$ICECAST_PORT|g" "$TARGET_FILE"

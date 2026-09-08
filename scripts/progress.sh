@@ -25,10 +25,18 @@ progress() {
     # Geanimeerde weergawe: geskryf direk na die beheerterminaal (indien een
     # bestaan) en oorskryf homself op dieselfde reël, ongeag hoe install.sh
     # hierdie skrip se gewone uitset herlei of deur tee stuur.
+    #
+    # Bash stel herleidings van links na regs op; as "> /dev/tty" EERSTE
+    # kom en misluk (bv. geen beheerterminaal nie, soos wanneer radioctl
+    # via sudo/su vanaf 'n ander skrip aangeroep word), druk dit die fout
+    # op die destydse (nog-nie-herlei-nie) stderr, en "2>/dev/null" wat
+    # daarna volg kom nooit betyds nie. Deur "2>/dev/null" EERSTE te sit,
+    # is stderr reeds stilgemaak teen die tyd wat die /dev/tty-poging
+    # (moontlik) misluk.
     {
         printf "\r   [%s] %3d%% %-48s" "$bar" "$percent" "$message"
         if [ "$percent" -ge 100 ]; then
             printf "\n"
         fi
-    } > /dev/tty 2>/dev/null || true
+    } 2>/dev/null > /dev/tty || true
 }

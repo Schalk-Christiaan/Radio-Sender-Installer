@@ -7,9 +7,13 @@
 backup_radio_url = "__BACKUP_STREAM_URL__"
 
 backup_radio =
-  blank.strip(
-    input.http(
-      self_sync=false,
-      backup_radio_url
+  buffer(
+    max=stream_buffer_max,
+    blank.strip(
+      input.http(
+        self_sync=false,
+        id="backup_input",
+        backup_radio_url
+      )
     )
   )

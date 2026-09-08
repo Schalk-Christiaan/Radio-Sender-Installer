@@ -43,7 +43,10 @@ if [ "$INSTALL_DASHBOARD" = "yes" ]; then
     # ons oorskryf sy konfigurasie in elk geval later (scripts/icecast.sh).
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         icecast2 \
-        mpv
+        mpv \
+        toilet \
+        socat \
+        vnstat
 fi
 
 progress 95 "Verifieer installasie"

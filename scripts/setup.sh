@@ -196,6 +196,27 @@ while true; do
 done
 
 #
+# Stroom-buffer
+#
+
+echo
+
+DEFAULT_STREAM_BUFFER_MAX="10"
+
+while true; do
+
+    read -rp "Maksimum stroom-buffer in sekondes (voorkom opbou van FM-vertraging by lang looptye) [$DEFAULT_STREAM_BUFFER_MAX]: " STREAM_BUFFER_MAX
+    STREAM_BUFFER_MAX=${STREAM_BUFFER_MAX:-$DEFAULT_STREAM_BUFFER_MAX}
+
+    if validate_positive_int "$STREAM_BUFFER_MAX"; then
+        break
+    fi
+
+    echo "Moet 'n positiewe heelgetal wees."
+
+done
+
+#
 # Heartbeat
 #
 
@@ -348,6 +369,7 @@ fi
 echo "Musiek Gewig     : $MUSIC_WEIGHT"
 echo "Sweeper Gewig    : $SWEEPER_WEIGHT"
 echo "ALSA Device      : $ALSA_DEVICE"
+echo "Stroom-buffer    : ${STREAM_BUFFER_MAX}s"
 
 if [ -n "$HEARTBEAT_URL" ]; then
     echo "Heartbeat URL    : $HEARTBEAT_URL"
@@ -423,6 +445,8 @@ PLAYLIST_PREFETCH="10"
     echo
     printf '%s=%q\n' MUSIC_WEIGHT "$MUSIC_WEIGHT"
     printf '%s=%q\n' SWEEPER_WEIGHT "$SWEEPER_WEIGHT"
+    echo
+    printf '%s=%q\n' STREAM_BUFFER_MAX "$STREAM_BUFFER_MAX"
     echo
     printf '%s=%q\n' PLAYLIST_RELOAD "$PLAYLIST_RELOAD"
     printf '%s=%q\n' PLAYLIST_PREFETCH "$PLAYLIST_PREFETCH"
