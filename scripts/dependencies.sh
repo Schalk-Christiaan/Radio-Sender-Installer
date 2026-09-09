@@ -46,7 +46,8 @@ if [ "$INSTALL_DASHBOARD" = "yes" ]; then
         mpv \
         toilet \
         socat \
-        vnstat
+        vnstat \
+        iptables
 fi
 
 progress 95 "Verifieer installasie"

@@ -55,11 +55,14 @@ STATUS_MSG=""
 PLAYING=false
 PLAYER_PID=""
 
-# INSTELLINGS en GEVAARLIK leef nou altyd op die hoofskerm (nie meer 'n
-# aparte oortjie-skerm nie) - hierdie twee booleans bepaal net of hulle
-# items op die oomblik oop- of toegevou is (sien draw_main_body()).
-SHOW_SETTINGS=false
-SHOW_DANGER=false
+# Oortjies. Al vier leef op DIESELFDE deurlopende skerm (STATUS/STELSEL
+# bly altyd sigbaar bo-aan) - geen aparte modus/skerm-wissel nie. Net een
+# oortjie se opsies wys op enige oomblik; ◄/► wissel tussen hulle (sien
+# cycle_tab()/read_main_key()). BEHEER is die verstek-oortjie omdat dit
+# die mees-gebruikte aksies bevat. Elke oortjie se opsies begin by 1 (sien
+# docs/adr/0001-dashboard-single-screen-tab-navigation.md vir waarom).
+TAB_NAMES=(BEHEER INSTELLINGS GEVAARLIK TOETS)
+ACTIVE_TAB="BEHEER"
 
 spinner_run() {
 
@@ -372,10 +375,51 @@ inline_pause() {
     printf '%s' "$HIDE_CURSOR"
 }
 
-handle_settings_key() {
-
+# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Logs 5) Monitor
+#     6) Media 7) Rugsteun --------------------------------------------
+handle_beheer_item() {
     local choice="$1"
-    local val
+
+    case "$choice" in
+        1)
+            spinner_run "Begin radio..." sudo radioctl start
+            [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio begin."
+            ;;
+        2)
+            spinner_run "Stop radio..." sudo radioctl stop
+            [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio gestop."
+            ;;
+        3)
+            spinner_run "Herbegin radio..." sudo radioctl restart
+            [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio herbegin."
+            ;;
+        4)
+            printf '%s' "$SHOW_CURSOR"
+            sudo radioctl logs | less
+            printf '%s' "$HIDE_CURSOR"
+            STATUS_MSG=""
+            ;;
+        5)
+            toggle_listen
+            ;;
+        6)
+            STATUS_MSG=$(sudo radioctl media 2>&1)
+            ;;
+        7)
+            spinner_run "Skep rugsteun..." sudo radioctl backup
+            ;;
+        "")
+            STATUS_MSG=""
+            ;;
+        *)
+            STATUS_MSG="Onbekende opsie: $choice"
+            ;;
+    esac
+}
+
+# --- INSTELLINGS-oortjie: 1-10 -----------------------------------------
+handle_instellings_item() {
+    local choice="$1" val
 
     case "$choice" in
         1)
@@ -413,47 +457,10 @@ handle_settings_key() {
             STATUS_MSG=$(sudo radioctl set HEARTBEAT_URL "$val" 2>&1)
             ;;
         7)
-            printf '%s' "$SHOW_CURSOR"
-            echo
-            sudo radioctl passwords
-            inline_pause
-            STATUS_MSG=""
-            ;;
-        8)
-            inline_prompt "Opdateer sagteware nou? (Y/N): " val
-            if [[ "$val" =~ ^[Yy]$ ]]; then
-                printf '%s' "$SHOW_CURSOR"
-                sudo radioctl update
-                inline_pause
-            fi
-            STATUS_MSG=""
-            ;;
-        9)
-            inline_prompt "Herkonfigureer nou? Dit loop die opstelling-vrae weer. (Y/N): " val
-            if [[ "$val" =~ ^[Yy]$ ]]; then
-                printf '%s' "$SHOW_CURSOR"
-                sudo radioctl reconfigure
-                inline_pause
-            fi
-            STATUS_MSG=""
-            ;;
-        10)
-            inline_prompt "WAARSKUWING: dit verwyder ALLES permanent. Is jy seker? (Y/N): " val
-            if [[ "$val" =~ ^[Yy]$ ]]; then
-                printf '%s' "$SHOW_CURSOR"
-                sudo radioctl uninstall
-                echo
-                echo "Verwydering voltooi."
-                inline_pause
-                exit 0
-            fi
-            STATUS_MSG=""
-            ;;
-        11)
             inline_prompt "Maksimum stroom-buffer in sekondes: " val
             STATUS_MSG=$(sudo radioctl set STREAM_BUFFER_MAX "$val" 2>&1)
             ;;
-        12)
+        8)
             printf '%s' "$SHOW_CURSOR"
             echo
             echo "Beskikbare kleurskemas:"
@@ -483,7 +490,25 @@ handle_settings_key() {
                 STATUS_MSG="Ongeldige keuse."
             fi
             ;;
-        0|"")
+        9)
+            inline_prompt "Opdateer sagteware nou? (Y/N): " val
+            if [[ "$val" =~ ^[Yy]$ ]]; then
+                printf '%s' "$SHOW_CURSOR"
+                sudo radioctl update
+                inline_pause
+            fi
+            STATUS_MSG=""
+            ;;
+        10)
+            inline_prompt "Herkonfigureer nou? Dit loop die opstelling-vrae weer. (Y/N): " val
+            if [[ "$val" =~ ^[Yy]$ ]]; then
+                printf '%s' "$SHOW_CURSOR"
+                sudo radioctl reconfigure
+                inline_pause
+            fi
+            STATUS_MSG=""
+            ;;
+        "")
             STATUS_MSG=""
             ;;
         *)
@@ -492,20 +517,145 @@ handle_settings_key() {
     esac
 }
 
-# Lees een "invoer-eenheid" op die hoofskerm. Enkelletter-opdragte (S/T/R/
-# ens.) werk oombliklik, geen Enter nodig nie; 'n syfer begin egter 'n
-# Instellings/Gevaarlik-opsienommer (tot "12"), wat 'n VOLLE reël moet lees
-# tot Enter. Ons lees dus eers EEN karakter stil: as dit 'n syfer is, druk
-# ons dit self en lees die res van die reël normaalweg (die terminal
-# hanteer eggo/terugspasie self); andersins is dit 'n oombliklike
-# enkelletter-opdrag. 'n Los ESC (bv. per ongeluk 'n pyltjie gedruk) word
-# stil weggegooi sodat dit nie per abuis as 'n opdrag ontleed word nie.
+# --- GEVAARLIK-oortjie: 1) Wagwoorde 2) Verwyder alles ------------------
+handle_gevaarlik_item() {
+    local choice="$1" val
+
+    case "$choice" in
+        1)
+            printf '%s' "$SHOW_CURSOR"
+            echo
+            sudo radioctl passwords
+            inline_pause
+            STATUS_MSG=""
+            ;;
+        2)
+            inline_prompt "WAARSKUWING: dit verwyder ALLES permanent. Is jy seker? (Y/N): " val
+            if [[ "$val" =~ ^[Yy]$ ]]; then
+                printf '%s' "$SHOW_CURSOR"
+                sudo radioctl uninstall
+                echo
+                echo "Verwydering voltooi."
+                inline_pause
+                exit 0
+            fi
+            STATUS_MSG=""
+            ;;
+        "")
+            STATUS_MSG=""
+            ;;
+        *)
+            STATUS_MSG="Onbekende opsie: $choice"
+            ;;
+    esac
+}
+
+# --- TOETS-oortjie: 1) Bron 1 2) Bron 2 3) Internet 4) Diens-crash
+#     5) Heartbeat 6) Klankkaart -----------------------------------------
+#
+# 1-3 is wissel-opsies (loop/gestop, of normaal/geblokkeer) - die huidige
+# toestand word ELKE keer eers by radioctl bevraagteken (nie plaaslik
+# onthou nie), sodat 'n outomatiese herstel (bv. die internet-blokkade se
+# 60s-tydgrens) korrek op die skerm weerspieël word.
+handle_toets_item() {
+    local choice="$1" val resp
+
+    case "$choice" in
+        1)
+            resp=$(sudo radioctl test-source-status 1 2>&1)
+            if [ "$resp" = "gestop" ]; then
+                STATUS_MSG=$(sudo radioctl test-source-start 1 2>&1)
+            else
+                STATUS_MSG=$(sudo radioctl test-source-stop 1 2>&1)
+            fi
+            ;;
+        2)
+            resp=$(sudo radioctl test-source-status 2 2>&1)
+            if [ "$resp" = "gestop" ]; then
+                STATUS_MSG=$(sudo radioctl test-source-start 2 2>&1)
+            else
+                STATUS_MSG=$(sudo radioctl test-source-stop 2 2>&1)
+            fi
+            ;;
+        3)
+            resp=$(sudo radioctl test-internet-status 2>&1)
+            if [ "$resp" = "geblokkeer" ]; then
+                STATUS_MSG=$(sudo radioctl test-internet-restore 2>&1)
+            else
+                STATUS_MSG=$(sudo radioctl test-internet-block 2>&1)
+            fi
+            ;;
+        4)
+            inline_prompt "Maak die radio-diens dood om outo-herstel te toets? (Y/N): " val
+            if [[ "$val" =~ ^[Yy]$ ]]; then
+                STATUS_MSG=$(sudo radioctl test-service-crash 2>&1)
+            else
+                STATUS_MSG=""
+            fi
+            ;;
+        5)
+            STATUS_MSG=$(sudo radioctl test-heartbeat 2>&1)
+            ;;
+        6)
+            STATUS_MSG=$(sudo radioctl test-soundcard 2>&1)
+            ;;
+        "")
+            STATUS_MSG=""
+            ;;
+        *)
+            STATUS_MSG="Onbekende opsie: $choice"
+            ;;
+    esac
+}
+
+# Stuur 'n getikte opsienommer na die regte oortjie se hanteerder - watter
+# nommer wat beteken, hang af van watter oortjie op die oomblik aktief is
+# (elke oortjie se nommers begin by 1, sien TAB_NAMES hierbo).
+handle_tab_item() {
+    local choice="$1"
+
+    case "$ACTIVE_TAB" in
+        BEHEER)      handle_beheer_item "$choice" ;;
+        INSTELLINGS) handle_instellings_item "$choice" ;;
+        GEVAARLIK)   handle_gevaarlik_item "$choice" ;;
+        TOETS)       handle_toets_item "$choice" ;;
+    esac
+}
+
+cycle_tab() {
+    local dir="$1" i cur=0
+
+    for i in "${!TAB_NAMES[@]}"; do
+        [ "${TAB_NAMES[$i]}" = "$ACTIVE_TAB" ] && cur=$i
+    done
+
+    local n=${#TAB_NAMES[@]}
+    if [ "$dir" = "next" ]; then
+        cur=$(( (cur + 1) % n ))
+    else
+        cur=$(( (cur - 1 + n) % n ))
+    fi
+
+    ACTIVE_TAB="${TAB_NAMES[$cur]}"
+    STATUS_MSG=""
+}
+
+# Lees een "invoer-eenheid" op die hoofskerm. Enkelletter-opdragte ('n
+# oortjie se opsies word getik as syfers, sien onder) werk oombliklik,
+# geen Enter nodig nie - op die oomblik is net [Q] so 'n opdrag. 'n Syfer
+# begin egter 'n oortjie-opsienommer, wat 'n VOLLE reël moet lees tot
+# Enter. Ons lees dus eers EEN karakter stil: as dit 'n syfer is, druk ons
+# dit self en lees die res van die reël normaalweg (die terminal hanteer
+# eggo/terugspasie self); as dit ESC is, ontleed ons 'n moontlike
+# pyltjie-volgorde (om tussen oortjies te wissel); andersins is dit 'n
+# oombliklike enkelletter-opdrag.
 #
 # Uitset (globale veranderlikes, nie 'n plaaslike return-waarde nie, want
 # bash-funksies kan net een heelgetal-statuskode teruggee):
-#   MAIN_INPUT_TYPE = "line" | "char" | "none"
+#   MAIN_INPUT_TYPE = "line" | "char" | "tab" | "none"
 #   MAIN_INPUT_LINE = die getikte reël (by "line")
 #   MAIN_INPUT_CHAR = die enkele karakter (by "char")
+#   MAIN_INPUT_DIR  = "prev" | "next" (by "tab")
 #
 # Die FUNKSIE se eie return-status is die van die EERSTE (tydgrens-
 # beperkte) lees, sodat die hooflus se bestaande uittyd/EOF-onderskeid
@@ -514,6 +664,7 @@ read_main_key() {
     MAIN_INPUT_TYPE="none"
     MAIN_INPUT_LINE=""
     MAIN_INPUT_CHAR=""
+    MAIN_INPUT_DIR=""
 
     local c1 status
     IFS= read -rsN1 -t "$read_timeout" c1
@@ -540,16 +691,21 @@ read_main_key() {
     fi
 
     if [ "$c1" = $'\033' ]; then
-        # Lees greep-vir-greep, presies soos die vorige oortjie-weergawe se
-        # parse_settings_escape() gedoen het: as die volgende greep nie '['
-        # is nie (of niks kom betyds nie), gooi ons NIKS bykomend weg nie -
-        # 'n vinnige regte toetsdruk direk ná 'n los ESC bly dus intak. Kom
-        # daar wel '[' (die tipiese pyltjie-voorvoegsel), verbruik net EEN
-        # verdere greep (die pyltjie se laaste letter) en gooi dit weg.
+        # Lees greep-vir-greep: as die volgende greep nie '[' is nie (of
+        # niks kom betyds nie), gooi ons NIKS bykomend weg nie - 'n
+        # vinnige regte toetsdruk direk ná 'n los ESC bly dus intak. Kom
+        # daar wel '[', kyk na die derde greep om die pyltjie-rigting te
+        # bepaal (A/D=links, B/C=regs - albei pare wissel oortjies, soos
+        # die vorige oortjie-weergawe se pyltjie-hantering).
         local c2
         IFS= read -rsN1 -t 0.05 c2 || return 0
         if [ "$c2" = "[" ]; then
-            IFS= read -rsN1 -t 0.2 || true
+            local c3
+            IFS= read -rsN1 -t 0.2 c3 || return 0
+            case "$c3" in
+                A|D) MAIN_INPUT_TYPE="tab"; MAIN_INPUT_DIR="prev" ;;
+                B|C) MAIN_INPUT_TYPE="tab"; MAIN_INPUT_DIR="next" ;;
+            esac
         fi
         return 0
     fi
@@ -561,9 +717,9 @@ read_main_key() {
 
 # Bou 'n geëtiketteerde afdelingskop soos "── STATUS ──────" wat presies
 # tot die opgegewe breedte strek - gebruik om die skerm in duidelike
-# afdelings te verdeel (STATUS, OPDRAGTE) i.p.v. een groot blok teks. Die
-# kleur word deurgegee (nie hardgekodeer nie) sodat STATUS en OPDRAGTE elk
-# in 'n ander aksentkleur van die aktiewe kleurskema kan wys.
+# afdelings te verdeel. Die kleur word deurgegee (nie hardgekodeer nie)
+# sodat verskillende afdelings elk in 'n ander aksentkleur van die
+# aktiewe kleurskema kan wys.
 section_header() {
     local label="$1" width="$2" color="$3"
     local left="── ${label} "
@@ -576,11 +732,11 @@ section_header() {
     printf '%s%s%s%s' "$color" "$left" "$dashes" "$RESET"
 }
 
-# Druk 'n stel opdrag-opsies as 'n eweredig-belynde rooster: elke sel se
-# breedte word bereken vanaf die LANGSTE opsie se SIGBARE lengte (sonder
-# ANSI-kleurkodes), en die aantal kolomme pas by die terminaal se
-# beskikbare breedte aan - so bly die opsies altyd in reguit, netjiese
-# lyne, ongeag skermgrootte of watter opsie se teks toevallig kleur het.
+# Druk 'n stel opsies as 'n eweredig-belynde rooster: elke sel se breedte
+# word bereken vanaf die LANGSTE opsie se SIGBARE lengte (sonder ANSI-
+# kleurkodes), en die aantal kolomme pas by die terminaal se beskikbare
+# breedte aan - so bly die opsies altyd in reguit, netjiese lyne, ongeag
+# skermgrootte of watter opsie se teks toevallig kleur het.
 print_command_grid() {
     local -n _plain="$1"
     local -n _colored="$2"
@@ -610,58 +766,118 @@ print_command_grid() {
     [ -n "$line" ] && echo "  $line"
 }
 
-draw_main_body() {
+# Bou die oortjiebalk se teks (bv. "[BEHEER] INSTELLINGS GEVAARLIK TOETS")
+# - die aktiewe oortjie is vetgedruk in PRIMARY en tussen hakies.
+compute_tab_bar() {
+    local i name disp colored line=""
 
-    local listen_plain listen_colored
+    for i in "${!TAB_NAMES[@]}"; do
+        name="${TAB_NAMES[$i]}"
+        if [ "$name" = "$ACTIVE_TAB" ]; then
+            disp="[${name}]"
+            colored="${BOLD}${PRIMARY}${disp}${RESET}"
+        else
+            disp="$name"
+            colored="$disp"
+        fi
+        line+="${colored} "
+    done
+
+    printf '%s' "$line"
+}
+
+draw_beheer_tab() {
+    local listen_item
     if [ "$PLAYING" = true ]; then
-        listen_plain="[P] Monitor Af"
-        listen_colored="[P] ${PRIMARY}Monitor Af${RESET}"
+        listen_item="5) Monitor Af"
     else
-        listen_plain="[P] Monitor Aan"
-        listen_colored="[P] ${PRIMARY}Monitor Aan${RESET}"
+        listen_item="5) Monitor Aan"
     fi
 
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
-    local cmd_plain=(
-        "[S] Begin" "[T] Stop" "[R] Herbegin"
-        "[L] Logs" "$listen_plain" "[M] Media"
-        "[B] Rugsteun" "[Q] Verlaat na shell"
+    local items=(
+        "1) Begin" "2) Stop" "3) Herbegin"
+        "4) Logs" "$listen_item" "6) Media"
+        "7) Rugsteun"
+    )
+    print_command_grid items items "$sep_width"
+}
+
+draw_instellings_tab() {
+    # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
+    local items=(
+        "1) Stroom URL (primêr)" "2) Rugsteun-stroom URL"
+        "3) Musiek/sweeper-verhouding" "4) Stasienaam"
+        "5) ALSA-klanktoestel" "6) Heartbeat URL"
+        "7) Maksimum stroom-buffer" "8) Kleurskema"
+        "9) Opdateer sagteware" "10) Herkonfigureer"
+    )
+    print_command_grid items items "$sep_width"
+}
+
+draw_gevaarlik_tab() {
+    echo "  1) ${RED}Wys wagwoorde${RESET}"
+    echo "  2) ${RED}Verwyder alles (uninstall)${RESET}"
+}
+
+draw_toets_tab() {
+    local bron1 bron2 internet
+    bron1=$(sudo radioctl test-source-status 1 2>/dev/null)
+    bron2=$(sudo radioctl test-source-status 2 2>/dev/null)
+    internet=$(sudo radioctl test-internet-status 2>/dev/null)
+
+    local p1 p2 p3 c1 c2 c3
+
+    if [ "$bron1" = "gestop" ]; then
+        p1="1) Bron 1: Herstel"; c1="1) ${RED}Bron 1: Herstel${RESET}"
+    else
+        p1="1) Bron 1: Simuleer wegval"; c1="$p1"
+    fi
+
+    if [ "$bron2" = "gestop" ]; then
+        p2="2) Bron 2: Herstel"; c2="2) ${RED}Bron 2: Herstel${RESET}"
+    else
+        p2="2) Bron 2: Simuleer wegval"; c2="$p2"
+    fi
+
+    if [ "$internet" = "geblokkeer" ]; then
+        p3="3) Internet: Herstel"; c3="3) ${RED}Internet: Herstel${RESET}"
+    else
+        p3="3) Internet: Simuleer verlies"; c3="$p3"
+    fi
+
+    # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
+    local items_plain=(
+        "$p1" "$p2" "$p3"
+        "4) Diens-crash toets" "5) Heartbeat-toets nou" "6) Klankkaart-toets"
     )
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
-    local cmd_colored=(
-        "[S] Begin" "[T] Stop" "[R] Herbegin"
-        "[L] Logs" "$listen_colored" "[M] Media"
-        "[B] Rugsteun" "[Q] Verlaat na shell"
+    local items_colored=(
+        "$c1" "$c2" "$c3"
+        "4) Diens-crash toets" "5) Heartbeat-toets nou" "6) Klankkaart-toets"
     )
+    print_command_grid items_plain items_colored "$sep_width"
 
-    print_command_grid cmd_plain cmd_colored "$sep_width"
+    if [ "$internet" = "geblokkeer" ]; then
+        echo
+        echo "  ${RED}Internet is tans geblokkeer (toets) - herstel outomaties binnekort.${RESET}"
+    fi
+}
 
+draw_tabs_body() {
+    echo "$(compute_tab_bar)${GRAY}(◄ ► om te wissel)${RESET}"
+    echo "$sep"
     echo
 
-    local settings_arrow="▸" danger_arrow="▸"
-    [ "$SHOW_SETTINGS" = true ] && settings_arrow="▾"
-    [ "$SHOW_DANGER" = true ] && danger_arrow="▾"
+    case "$ACTIVE_TAB" in
+        BEHEER)      draw_beheer_tab ;;
+        INSTELLINGS) draw_instellings_tab ;;
+        GEVAARLIK)   draw_gevaarlik_tab ;;
+        TOETS)       draw_toets_tab ;;
+    esac
 
-    echo "  [I] Instellings ${settings_arrow}"
-
-    if [ "$SHOW_SETTINGS" = true ]; then
-        # shellcheck disable=SC2034 # gebruik via naamverwysing in print_command_grid
-        local settings_items=(
-            "1) Stroom URL (primêr)" "2) Rugsteun-stroom URL"
-            "3) Musiek/sweeper-verhouding" "4) Stasienaam"
-            "5) ALSA-klanktoestel" "6) Heartbeat URL"
-            "11) Maksimum stroom-buffer" "12) Kleurskema"
-            "8) Opdateer sagteware" "9) Herkonfigureer"
-        )
-        print_command_grid settings_items settings_items "$sep_width"
-    fi
-
-    echo "  [G] Gevaarlike opsies ${danger_arrow}"
-
-    if [ "$SHOW_DANGER" = true ]; then
-        echo "    7) ${RED}Wys wagwoorde${RESET}"
-        echo "    10) ${RED}Verwyder alles (uninstall)${RESET}"
-    fi
+    echo
+    echo "  [Q] Verlaat na shell"
 
     if [ -n "$STATUS_MSG" ]; then
         echo
@@ -732,7 +948,7 @@ draw() {
     frame=$(
         echo "$STATION_BANNER_TEXT"
 
-        # Die aksentbalk en afdelingskoppe ("── STATUS ──" ens.) is suiwer
+        # Die aksentbalk en afdelingskop ("── STATUS ──" ens.) is suiwer
         # dekoratief - hulle kos ekstra reëls, so op klein/compact skerms
         # (waar elke reël skaars is) val ons terug na die ou, sobere uitleg
         # (net die skeidingslyn "$sep") i.p.v. hulle af te druk.
@@ -758,13 +974,9 @@ draw() {
 
         [ "$compact" = false ] && echo
 
-        if [ "$compact" = false ]; then
-            echo "$(section_header "OPDRAGTE" "$sep_width" "$PRIMARY")"
-        else
-            echo "$sep"
-        fi
+        echo "$sep"
 
-        draw_main_body
+        draw_tabs_body
 
         echo "$sep"
     )
@@ -812,45 +1024,13 @@ while true; do
 
         case "$MAIN_INPUT_TYPE" in
             line)
-                handle_settings_key "$MAIN_INPUT_LINE"
+                handle_tab_item "$MAIN_INPUT_LINE"
+                ;;
+            tab)
+                cycle_tab "$MAIN_INPUT_DIR"
                 ;;
             char)
                 case "$MAIN_INPUT_CHAR" in
-                    [Ss])
-                        spinner_run "Begin radio..." sudo radioctl start
-                        [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio begin."
-                        ;;
-                    [Tt])
-                        spinner_run "Stop radio..." sudo radioctl stop
-                        [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio gestop."
-                        ;;
-                    [Rr])
-                        spinner_run "Herbegin radio..." sudo radioctl restart
-                        [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio herbegin."
-                        ;;
-                    [Ll])
-                        printf '%s' "$SHOW_CURSOR"
-                        sudo radioctl logs | less
-                        printf '%s' "$HIDE_CURSOR"
-                        STATUS_MSG=""
-                        ;;
-                    [Pp])
-                        toggle_listen
-                        ;;
-                    [Mm])
-                        STATUS_MSG=$(sudo radioctl media 2>&1)
-                        ;;
-                    [Bb])
-                        spinner_run "Skep rugsteun..." sudo radioctl backup
-                        ;;
-                    [Ii])
-                        [ "$SHOW_SETTINGS" = true ] && SHOW_SETTINGS=false || SHOW_SETTINGS=true
-                        STATUS_MSG=""
-                        ;;
-                    [Gg])
-                        [ "$SHOW_DANGER" = true ] && SHOW_DANGER=false || SHOW_DANGER=true
-                        STATUS_MSG=""
-                        ;;
                     [Qq])
                         clear
                         break

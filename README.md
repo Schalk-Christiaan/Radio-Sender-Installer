@@ -151,9 +151,20 @@ radioctl passwords      Wys al die gestoorde wagwoorde (File Browser, beheerpane
 radioctl reconfigure    Loop die opstelling-assistent weer
 radioctl update         Trek die jongste weergawe en herinstalleer
 radioctl uninstall      Verwyder die hele installasie
+
+Foutsimulasie (ook direk via radioctl, sien "Toets-oortjie" hieronder):
+radioctl test-source-status <1|2>   Wys of bron 1/2 tans gestop (gesimuleer) is
+radioctl test-source-stop <1|2>     Simuleer bron 1/2 se wegval
+radioctl test-source-start <1|2>    Herstel bron 1/2
+radioctl test-internet-status       Wys of die toets-internetblokkade tans aktief is
+radioctl test-internet-block        Blokkeer alle nuwe uitgaande verkeer (60s outo-herstel)
+radioctl test-internet-restore      Herstel internet dadelik
+radioctl test-service-crash         Maak radio-orania.service dood (toets outo-herstel)
+radioctl test-heartbeat             Stuur een heartbeat-oproep en wys slaag/faal
+radioctl test-soundcard             Speel 'n toets-toon na die ALSA-toestel
 ```
 
-`start`/`stop`/`restart`/`backup`/`set`/`passwords`/`reconfigure`/`update`/`uninstall` vereis root (`sudo radioctl ...`).
+`start`/`stop`/`restart`/`backup`/`set`/`passwords`/`reconfigure`/`update`/`uninstall` vereis root (`sudo radioctl ...`), soos ook `test-source-stop`/`test-source-start`/`test-internet-block`/`test-internet-restore`/`test-service-crash`/`test-soundcard`.
 
 ---
 
@@ -167,7 +178,9 @@ Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met sl
 /opt/radio-orania/config/radio-admin-credentials.txt
 ```
 
-Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan. Die STATUS-afdeling wys `radioctl status`-inligting (aktiewe bron, totale aanlyn-tyd) plus stelsel-inligting wat elke verversing regstreeks bygewerk word — netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue en CPU-temperatuur. Vanaf die skerm: `[S]` begin, `[T]` stop, `[R]` herbegin, `[L]` logs, `[P]` monitor aan/af, `[M]` media-besonderhede, `[B]` rugsteun, `[I]` instellings, `[G]` gevaarlike opsies, `[Q]` verlaat na 'n gewone shell. Die opdrag-opsies staan in netjiese, belynde kolomme wat ook by die skermbreedte aanpas. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
+Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan. Die STATUS-afdeling wys `radioctl status`-inligting (aktiewe bron, totale aanlyn-tyd) plus stelsel-inligting wat elke verversing regstreeks bygewerk word — netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue en CPU-temperatuur — en bly altyd sigbaar, ongeag watter oortjie hieronder oop is.
+
+Daaronder is een deurlopende oortjie-area (BEHEER / INSTELLINGS / GEVAARLIK / TOETS — sien "Oortjies" hieronder) met `◄`/`►` om te wissel. `[Q]` verlaat na 'n gewone shell, ongeag watter oortjie oop is. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
 
 ### Volskerm op die fisiese skerm
 
@@ -187,18 +200,30 @@ Om die lettertipe self weer te verander (groter/kleiner), gebruik `sudo dpkg-rec
 
 ### Monitor
 
-`[P]` speel presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Druk `[P]` weer om te stop (doelbewus anders benoem en gekleur as `[T]` Stop, wat die werklike uitsending stop). (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
+Op die BEHEER-oortjie speel "Monitor Aan" presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Kies dieselfde opsie weer (dan "Monitor Af") om te stop — doelbewus 'n aparte opsie van "Stop", wat die werklike uitsending stop. (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
 
-### Instellings
+### Oortjies
 
-INSTELLINGS en GEVAARLIK leef altyd op die hoofskerm — geen aparte skerm, oortjies of muisklik meer nie. `[I]` vou die INSTELLINGS-opsies reg op dieselfde skerm oop/toe, en `[G]` doen dieselfde vir GEVAARLIK:
+Vier oortjies, gewissel met `◄`/`►`. Elke oortjie se opsies is genommer, herbegin by 1 — tik die nommer en druk Enter om dit te kies (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir die volledige ontwerp-agtergrond):
 
-* **INSTELLINGS** (`[I]`) — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
-* **GEVAARLIK** (`[G]`) — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
+* **BEHEER** (verstek-oortjie) — Begin, Stop, Herbegin, Logs, Monitor aan/af, Media, Rugsteun
+* **INSTELLINGS** — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
+* **GEVAARLIK** — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
+* **TOETS** — foutsimulasie om failover-gedrag te toets sonder om regtig van die lug af te gaan (sien "Toets-oortjie" hieronder)
 
-Elke opsie is genommer (bv. `1) Stroom URL`); tik die nommer en druk Enter om dit te verander. Al die "verander"-opsies word dadelik toegepas en herbegin die diens waar nodig. Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
+Al die INSTELLINGS "verander"-opsies word dadelik toegepas en herbegin die diens waar nodig. Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
 
 Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur. Die regstreekse netwerk-buffer en data-verbruik-syfers vereis onderskeidelik 'n plaaslike Liquidsoap-beheersocket (`socat`, slegs plaaslik bereikbaar - geen netwerk-poort nie) en `vnstat` — albei word saam met die beheerpaneel-skerm geïnstalleer.
+
+### Toets-oortjie
+
+Elke toets is doelbewus omkeerbaar, en raak nooit meer as wat nodig is nie:
+
+* **Bron 1 / Bron 2: Simuleer wegval** — stop/begin die betrokke stroom se Liquidsoap-inset via die plaaslike beheersocket (dieselfde meganisme as die netwerk-buffer-syfer). Forseer 'n regte failover na die volgende bron in die ry; heeltemal plaaslik en omkeerbaar (kies weer om te herstel).
+* **Internet: Simuleer verlies** — blokkeer ALLE nuwe uitgaande verkeer (`iptables`), maar laat reeds-gevestigde koppelinge (soos jou huidige SSH-sessie) deur. Herstel outomaties na 60 sekondes, of kies die opsie weer om dadelik te herstel.
+* **Diens-crash toets** — maak `radio-orania.service` dood om die diens se `Restart=always`-outo-herstel te toets. Vra eers 'n Y/N-bevestiging, aangesien dit 'n regte, kort onderbreking van die uitsending veroorsaak.
+* **Heartbeat-toets nou** — stuur dadelik een oproep na `HEARTBEAT_URL` en wys of dit slaag/faal.
+* **Klankkaart-toets** — speel 'n kort toon direk na die ingestelde ALSA-toestel, los van die res van die Liquidsoap-pyplyn.
 
 ---
 

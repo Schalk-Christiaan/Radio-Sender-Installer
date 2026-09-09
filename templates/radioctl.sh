@@ -269,6 +269,184 @@ cmd_sysstats() {
     fi
 }
 
+# --- TOETS-oortjie: foutsimulasie vir die dashboard ---------------------
+#
+# Elke toets is doelbewus SELFSTANDIG omkeerbaar (of outomaties, of via 'n
+# eksplisiete "restore"-opdrag), en raak nooit meer as wat nodig is nie -
+# sien docs/adr/0001-dashboard-single-screen-tab-navigation.md vir die
+# volledige besluit-geskiedenis hieroor.
+
+TEST_INTERNET_MARKER="$BASE_DIR/liquidsoap/.test_internet_blocked"
+TEST_INTERNET_REVERT_SECS=60
+TEST_INTERNET_REVERT_UNIT="radio-orania-test-internet-revert"
+
+test_source_id() {
+    case "$1" in
+        1) echo "radio_input" ;;
+        2) echo "backup_input" ;;
+        *) return 1 ;;
+    esac
+}
+
+test_source_marker() {
+    echo "$BASE_DIR/liquidsoap/.test_bron${1}_stopped"
+}
+
+cmd_test_source_status() {
+    local n="$1" marker
+    marker=$(test_source_marker "$n") || { echo "onbekend"; exit 1; }
+
+    if [ -f "$marker" ]; then
+        echo "gestop"
+    else
+        echo "loop"
+    fi
+}
+
+cmd_test_source_stop() {
+    need_root "test-source-stop <1|2>"
+    load_config
+
+    local n="$1" id marker
+    id=$(test_source_id "$n") || { echo "Ongeldige bron: $n"; exit 1; }
+
+    if [ "$n" = "2" ] && [ -z "${BACKUP_STREAM_URL:-}" ]; then
+        echo "Geen rugsteun-stroom ingestel nie."
+        exit 1
+    fi
+
+    if command -v socat >/dev/null 2>&1 && [ -S "$SOCKET_FILE" ]; then
+        printf '%s\nquit\n' "${id}.stop" \
+            | timeout 2 socat - "UNIX-CONNECT:${SOCKET_FILE}" >/dev/null 2>&1 || true
+    fi
+
+    marker=$(test_source_marker "$n")
+    touch "$marker"
+
+    echo "Bron $n se wegval gesimuleer."
+}
+
+cmd_test_source_start() {
+    need_root "test-source-start <1|2>"
+
+    local n="$1" id marker
+    id=$(test_source_id "$n") || { echo "Ongeldige bron: $n"; exit 1; }
+
+    if command -v socat >/dev/null 2>&1 && [ -S "$SOCKET_FILE" ]; then
+        printf '%s\nquit\n' "${id}.start" \
+            | timeout 2 socat - "UNIX-CONNECT:${SOCKET_FILE}" >/dev/null 2>&1 || true
+    fi
+
+    marker=$(test_source_marker "$n")
+    rm -f "$marker"
+
+    echo "Bron $n herstel."
+}
+
+cmd_test_internet_status() {
+    if [ -f "$TEST_INTERNET_MARKER" ]; then
+        echo "geblokkeer"
+    else
+        echo "normaal"
+    fi
+}
+
+cmd_test_internet_block() {
+    need_root "test-internet-block"
+
+    if ! command -v iptables >/dev/null 2>&1; then
+        echo "iptables nie geïnstalleer nie."
+        exit 1
+    fi
+
+    if [ -f "$TEST_INTERNET_MARKER" ]; then
+        echo "Internet-blokkade is klaar aktief."
+        exit 0
+    fi
+
+    # Reeds-gevestigde koppelinge (soos 'n bestaande SSH-sessie) bly
+    # toegelaat - net NUWE uitgaande koppelinge word geblokkeer. Albei
+    # reëls dra 'n unieke comment-etiket sodat restore() net ONS reëls
+    # verwyder, nooit enige reeds-bestaande firewall-reël nie.
+    iptables -I OUTPUT 1 \
+        -m state --state ESTABLISHED,RELATED \
+        -m comment --comment radio-orania-test-established \
+        -j ACCEPT
+    iptables -A OUTPUT \
+        -m comment --comment radio-orania-test \
+        -j DROP
+
+    touch "$TEST_INTERNET_MARKER"
+
+    if command -v systemd-run >/dev/null 2>&1; then
+        systemd-run --unit="$TEST_INTERNET_REVERT_UNIT" \
+            --on-active="$TEST_INTERNET_REVERT_SECS" \
+            /usr/local/bin/radioctl test-internet-restore >/dev/null 2>&1 || true
+    fi
+
+    echo "Internet geblokkeer (herstel outomaties na ${TEST_INTERNET_REVERT_SECS}s, of kies hierdie opsie weer)."
+}
+
+cmd_test_internet_restore() {
+    need_root "test-internet-restore"
+
+    if command -v iptables >/dev/null 2>&1; then
+        while iptables -C OUTPUT -m comment --comment radio-orania-test -j DROP 2>/dev/null; do
+            iptables -D OUTPUT -m comment --comment radio-orania-test -j DROP
+        done
+        while iptables -C OUTPUT -m state --state ESTABLISHED,RELATED -m comment --comment radio-orania-test-established -j ACCEPT 2>/dev/null; do
+            iptables -D OUTPUT -m state --state ESTABLISHED,RELATED -m comment --comment radio-orania-test-established -j ACCEPT
+        done
+    fi
+
+    rm -f "$TEST_INTERNET_MARKER"
+
+    systemctl stop "${TEST_INTERNET_REVERT_UNIT}.service" >/dev/null 2>&1 || true
+
+    echo "Internet herstel."
+}
+
+cmd_test_service_crash() {
+    need_root "test-service-crash"
+
+    systemctl kill --signal=SIGKILL radio-orania.service
+
+    echo "Diens doodgemaak - wag ~5s vir outo-herstel (Restart=always)."
+}
+
+cmd_test_heartbeat() {
+    load_config
+
+    if [ -z "${HEARTBEAT_URL:-}" ]; then
+        echo "Heartbeat-toets: geen HEARTBEAT_URL ingestel nie."
+        exit 1
+    fi
+
+    if curl -fsS --max-time 10 -o /dev/null "$HEARTBEAT_URL"; then
+        echo "Heartbeat-toets: geslaag."
+    else
+        echo "Heartbeat-toets: misluk."
+        exit 1
+    fi
+}
+
+cmd_test_soundcard() {
+    need_root "test-soundcard"
+    load_config
+
+    if ! command -v speaker-test >/dev/null 2>&1; then
+        echo "Klankkaart-toets: onbekend (speaker-test nie geïnstalleer nie)."
+        exit 1
+    fi
+
+    if timeout 3 speaker-test -D "${ALSA_DEVICE:-default}" -c 2 -t sine -f 1000 -l 1 >/dev/null 2>&1; then
+        echo "Klankkaart-toets: geslaag (${ALSA_DEVICE:-default})."
+    else
+        echo "Klankkaart-toets: misluk (${ALSA_DEVICE:-default} dalk in gebruik deur die radio-diens, of nie bereikbaar nie)."
+        exit 1
+    fi
+}
+
 SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX"
 
 with_installer_config() {
@@ -473,6 +651,17 @@ Gebruik: radioctl <opdrag>
   reconfigure    Loop die opstelling-assistent weer
   update         Trek die jongste weergawe en herinstalleer
   uninstall      Verwyder die hele installasie
+
+  Foutsimulasie (TOETS-oortjie op die beheerpaneel-skerm):
+  test-source-status <1|2>   Wys of bron 1/2 tans gestop (gesimuleer) is
+  test-source-stop <1|2>     Simuleer bron 1/2 se wegval
+  test-source-start <1|2>    Herstel bron 1/2
+  test-internet-status       Wys of die toets-internetblokkade tans aktief is
+  test-internet-block        Blokkeer alle nuwe uitgaande verkeer (60s outo-herstel)
+  test-internet-restore      Herstel internet dadelik
+  test-service-crash         Maak radio-orania.service dood (toets outo-herstel)
+  test-heartbeat             Stuur een heartbeat-oproep en wys slaag/faal
+  test-soundcard             Speel 'n toets-toon na die ALSA-toestel
 EOF
 }
 
@@ -495,6 +684,15 @@ case "${1:-}" in
     reconfigure)  cmd_reconfigure ;;
     update)       cmd_update ;;
     uninstall)    cmd_uninstall ;;
+    test-source-status)   shift; cmd_test_source_status "${1:-}" ;;
+    test-source-stop)     shift; cmd_test_source_stop "${1:-}" ;;
+    test-source-start)    shift; cmd_test_source_start "${1:-}" ;;
+    test-internet-status)  cmd_test_internet_status ;;
+    test-internet-block)   cmd_test_internet_block ;;
+    test-internet-restore) cmd_test_internet_restore ;;
+    test-service-crash)    cmd_test_service_crash ;;
+    test-heartbeat)        cmd_test_heartbeat ;;
+    test-soundcard)        cmd_test_soundcard ;;
     ""|-h|--help|help) usage ;;
     *)
         echo "Onbekende opdrag: ${1:-}"
