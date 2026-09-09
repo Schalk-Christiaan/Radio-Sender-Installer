@@ -784,6 +784,74 @@ print_command_grid() {
     [ -n "$line" ] && echo "  $line"
 }
 
+# Druk 'n ry klein "kaartjies" (soos 'n dashboard-widget-ry) - elke
+# kaartjie se breedte pas by sy EIE titel/waarde (nie 'n gedeelde
+# rooster-breedte soos print_command_grid nie), en 'n nuwe kaartjie wat
+# nie meer op die huidige reël pas nie begin outomaties 'n nuwe ry.
+# _titles/_values/_colors moet dieselfde lengte hê; 'n leë kleur beteken
+# geen kleur nie.
+draw_status_cards() {
+    local -n _titles="$1"
+    local -n _values="$2"
+    local -n _colors="$3"
+    local avail="$4"
+
+    local i w tlen vlen dash_fill pad
+    local -a box_w=()
+
+    for i in "${!_titles[@]}"; do
+        tlen=${#_titles[$i]}
+        vlen=${#_values[$i]}
+        w=$(( vlen + 2 ))
+        (( tlen + 3 > w )) && w=$(( tlen + 3 ))
+        box_w[i]=$w
+    done
+
+    local top="" mid="" bot="" cur_width=0 piece_width dashes vpad
+
+    for i in "${!_titles[@]}"; do
+        w="${box_w[$i]}"
+        piece_width=$(( w + 3 ))
+
+        if [ "$cur_width" -gt 0 ] && (( cur_width + piece_width > avail )); then
+            echo "  $top"
+            echo "  $mid"
+            echo "  $bot"
+            top=""; mid=""; bot=""; cur_width=0
+        fi
+
+        tlen=${#_titles[$i]}
+        vlen=${#_values[$i]}
+        dash_fill=$(( w - tlen - 3 ))
+        # ${var// /X} (bash se eie stringvervanging) i.p.v. "tr ' ' '─'" -
+        # tr werk greep-vir-greep, en "─" is 'n multi-greep UTF-8-karakter;
+        # tr sou net die EERSTE greep daarvan herhaal en ongeldige UTF-8
+        # produseer (sien section_header()/accent_bar hierbo vir dieselfde
+        # veilige patroon).
+        dashes=$(printf '%*s' "$dash_fill" '')
+        dashes=${dashes// /─}
+        pad=$(( w - vlen - 2 ))
+        vpad=$(printf '%*s' "$pad" '')
+
+        top+="┌─ ${_titles[$i]} ${dashes}┐ "
+        if [ -n "${_colors[$i]}" ]; then
+            mid+="│ ${_colors[$i]}${_values[$i]}${RESET}${vpad} │ "
+        else
+            mid+="│ ${_values[$i]}${vpad} │ "
+        fi
+        local bot_dashes
+        bot_dashes=$(printf '%*s' "$w" '')
+        bot_dashes=${bot_dashes// /─}
+        bot+="└${bot_dashes}┘ "
+
+        cur_width=$(( cur_width + piece_width ))
+    done
+
+    echo "  $top"
+    echo "  $mid"
+    echo "  $bot"
+}
+
 # Bou die oortjiebalk se teks (bv. "[BEHEER] INSTELLINGS GEVAARLIK TOETS")
 # - die aktiewe oortjie is vetgedruk in PRIMARY en tussen hakies.
 compute_tab_bar() {
@@ -952,6 +1020,42 @@ draw() {
     local status_body
     status_body=$(printf '%s\n' "$status_raw" | grep -v 'Sender Naam')
 
+    # Kaartjie-waardes moet ANSI-vry wees om korrek te kan meet/opvul
+    # (draw_status_cards() voeg self kleur by via card_colors) - status_body
+    # hierbo bly wel gekleur, vir die stroom-URL-reël en "af"-status
+    # hieronder wat die kleure direk hergebruik.
+    local status_plain
+    status_plain=$(printf '%s\n' "$status_body" | sed -E 's/\x1b\[[0-9;]*m//g')
+
+    local bron_val aanlyn_val skyf_val
+    bron_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Aktiewe Bron *: *//p' | sed 's/ (.*//')
+    [ -z "$bron_val" ] && bron_val="onbekend"
+    aanlyn_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Aanlyn *: *//p')
+    skyf_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Beskikbare skyfspasie: *//p')
+
+    local svc_total svc_up
+    svc_total=$(printf '%s\n' "$status_plain" | grep -cE '\.(service|timer) +loop( nie)?$')
+    svc_up=$(printf '%s\n' "$status_plain" | grep -cE '\.(service|timer) +loop$')
+
+    local dienste_val dienste_color
+    dienste_val="${svc_up}/${svc_total} loop"
+    if [ "$svc_total" -gt 0 ] && [ "$svc_up" -eq "$svc_total" ]; then
+        dienste_color="$GREEN"
+    else
+        dienste_color="$RED"
+    fi
+
+    # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in draw_status_cards
+    local card_titles=(Bron Aanlyn Dienste Skyf)
+    # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in draw_status_cards
+    local card_values=("$bron_val" "$aanlyn_val" "$dienste_val" "${skyf_val:-onbekend}")
+    # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in draw_status_cards
+    local card_colors=("" "" "$dienste_color" "")
+
+    local url_line down_lines
+    url_line=$(printf '%s\n' "$status_body" | grep '^Stroom URL')
+    down_lines=$(printf '%s\n' "$status_body" | grep 'loop nie')
+
     local on_air=false
     systemctl is-active --quiet radio-orania.service 2>/dev/null && on_air=true
 
@@ -990,7 +1094,9 @@ draw() {
         [ "$compact" = false ] && echo
 
         [ "$compact" = false ] && echo "$(section_header "STATUS" "$sep_width" "$SECONDARY")"
-        echo "$status_body"
+        draw_status_cards card_titles card_values card_colors "$sep_width"
+        [ -n "$url_line" ] && echo "$url_line"
+        [ -n "$down_lines" ] && printf '%s\n' "$down_lines"
 
         if [ "$PLAYING" = true ]; then
             echo "  ${GREEN}▶ Monitor speel${RESET}   $(fake_wave)"
