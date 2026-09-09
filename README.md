@@ -1,6 +1,8 @@
 # Radio Orania Sender Installer
 
-'n Eenvoudige, betroubare Debian-gebaseerde radiosender met outomatiese stroom-failover, noodmusiek en web-gebaseerde media bestuur.
+'n Eenvoudige Debian-installer vir 'n radiosender wat 'n internetstroom speel en outomaties na noodmusiek oorskakel by wegval.
+
+![Beheerpaneel-skerm](docs/images/beheerpaneel-skerm.png)
 
 ---
 
