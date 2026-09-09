@@ -55,13 +55,13 @@ STATUS_MSG=""
 PLAYING=false
 PLAYER_PID=""
 
-# Oortjies. Al vier leef op DIESELFDE deurlopende skerm (STATUS/STELSEL
-# bly altyd sigbaar bo-aan) - geen aparte modus/skerm-wissel nie. Net een
-# oortjie se opsies wys op enige oomblik; ◄/► wissel tussen hulle (sien
+# Oortjies. Almal leef op DIESELFDE deurlopende skerm (STATUS bly altyd
+# sigbaar bo-aan) - geen aparte modus/skerm-wissel nie. Net een oortjie
+# se opsies wys op enige oomblik; ◄/► wissel tussen hulle (sien
 # cycle_tab()/read_main_key()). BEHEER is die verstek-oortjie omdat dit
 # die mees-gebruikte aksies bevat. Elke oortjie se opsies begin by 1 (sien
 # docs/adr/0001-dashboard-single-screen-tab-navigation.md vir waarom).
-TAB_NAMES=(BEHEER INSTELLINGS GEVAARLIK TOETS)
+TAB_NAMES=(BEHEER INLIGTING INSTELLINGS GEVAARLIK TOETS)
 ACTIVE_TAB="BEHEER"
 
 spinner_run() {
@@ -295,7 +295,10 @@ update_station_banner() {
 # Moet, soos update_station_banner(), as 'n GEWONE opdrag aangeroep word
 # (nie via "$(...)" nie) - anders gaan STELSEL_BODY_CACHE/_TS se
 # toekennings verlore sodra die subshell klaar is, en die kas sou nooit
-# werk nie.
+# werk nie. Die kaller (draw()) roep dit net wanneer die INLIGTING-oortjie
+# aktief is - die 5s-kas verhoed steeds herhaalde stadige oproepe solank
+# 'n mens daar bly sit, maar ander oortjies betaal nooit meer hierdie
+# koste nie.
 update_stelsel_body() {
     local now
     now=$(date +%s)
@@ -375,8 +378,8 @@ inline_pause() {
     printf '%s' "$HIDE_CURSOR"
 }
 
-# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Logs 5) Monitor
-#     6) Media 7) Rugsteun --------------------------------------------
+# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Monitor 5) Media
+#     6) Rugsteun -----------------------------------------------------
 handle_beheer_item() {
     local choice="$1"
 
@@ -394,19 +397,33 @@ handle_beheer_item() {
             [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio herbegin."
             ;;
         4)
+            toggle_listen
+            ;;
+        5)
+            STATUS_MSG=$(sudo radioctl media 2>&1)
+            ;;
+        6)
+            spinner_run "Skep rugsteun..." sudo radioctl backup
+            ;;
+        "")
+            STATUS_MSG=""
+            ;;
+        *)
+            STATUS_MSG="Onbekende opsie: $choice"
+            ;;
+    esac
+}
+
+# --- INLIGTING-oortjie: stelsel-syfers (buffer/data/CPU) + 1) Logs -----
+handle_inligting_item() {
+    local choice="$1"
+
+    case "$choice" in
+        1)
             printf '%s' "$SHOW_CURSOR"
             sudo radioctl logs | less
             printf '%s' "$HIDE_CURSOR"
             STATUS_MSG=""
-            ;;
-        5)
-            toggle_listen
-            ;;
-        6)
-            STATUS_MSG=$(sudo radioctl media 2>&1)
-            ;;
-        7)
-            spinner_run "Skep rugsteun..." sudo radioctl backup
             ;;
         "")
             STATUS_MSG=""
@@ -616,6 +633,7 @@ handle_tab_item() {
 
     case "$ACTIVE_TAB" in
         BEHEER)      handle_beheer_item "$choice" ;;
+        INLIGTING)   handle_inligting_item "$choice" ;;
         INSTELLINGS) handle_instellings_item "$choice" ;;
         GEVAARLIK)   handle_gevaarlik_item "$choice" ;;
         TOETS)       handle_toets_item "$choice" ;;
@@ -789,18 +807,23 @@ compute_tab_bar() {
 draw_beheer_tab() {
     local listen_item
     if [ "$PLAYING" = true ]; then
-        listen_item="5) Monitor Af"
+        listen_item="4) Monitor Af"
     else
-        listen_item="5) Monitor Aan"
+        listen_item="4) Monitor Aan"
     fi
 
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
     local items=(
         "1) Begin" "2) Stop" "3) Herbegin"
-        "4) Logs" "$listen_item" "6) Media"
-        "7) Rugsteun"
+        "$listen_item" "5) Media" "6) Rugsteun"
     )
     print_command_grid items items "$sep_width"
+}
+
+draw_inligting_tab() {
+    echo "$STELSEL_BODY_CACHE"
+    echo
+    echo "  1) Logs"
 }
 
 draw_instellings_tab() {
@@ -871,6 +894,7 @@ draw_tabs_body() {
 
     case "$ACTIVE_TAB" in
         BEHEER)      draw_beheer_tab ;;
+        INLIGTING)   draw_inligting_tab ;;
         INSTELLINGS) draw_instellings_tab ;;
         GEVAARLIK)   draw_gevaarlik_tab ;;
         TOETS)       draw_toets_tab ;;
@@ -941,8 +965,11 @@ draw() {
 
     # update_stelsel_body moet ook HIER (buite die subshell) loop, om
     # dieselfde rede as update_station_banner - sien die kommentaar by die
-    # funksie self.
-    update_stelsel_body
+    # funksie self. Loop dit net wanneer die INLIGTING-oortjie werklik
+    # aktief is (dis nou tab-inhoud, nie meer altyd-sigbaar nie).
+    if [ "$ACTIVE_TAB" = "INLIGTING" ]; then
+        update_stelsel_body
+    fi
 
     local frame
     frame=$(
@@ -964,7 +991,6 @@ draw() {
 
         [ "$compact" = false ] && echo "$(section_header "STATUS" "$sep_width" "$SECONDARY")"
         echo "$status_body"
-        echo "$STELSEL_BODY_CACHE"
 
         if [ "$PLAYING" = true ]; then
             echo "  ${GREEN}▶ Monitor speel${RESET}   $(fake_wave)"

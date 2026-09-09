@@ -178,9 +178,9 @@ Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met sl
 /opt/radio-orania/config/radio-admin-credentials.txt
 ```
 
-Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan. Die STATUS-afdeling wys `radioctl status`-inligting (aktiewe bron, totale aanlyn-tyd) plus stelsel-inligting wat elke verversing regstreeks bygewerk word — netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue en CPU-temperatuur — en bly altyd sigbaar, ongeag watter oortjie hieronder oop is.
+Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan. Die STATUS-afdeling (`radioctl status`-inligting — aktiewe bron, totale aanlyn-tyd) bly altyd sigbaar, ongeag watter oortjie hieronder oop is.
 
-Daaronder is een deurlopende oortjie-area (BEHEER / INSTELLINGS / GEVAARLIK / TOETS — sien "Oortjies" hieronder) met `◄`/`►` om te wissel. `[Q]` verlaat na 'n gewone shell, ongeag watter oortjie oop is. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
+Daaronder is een deurlopende oortjie-area (BEHEER / INLIGTING / INSTELLINGS / GEVAARLIK / TOETS — sien "Oortjies" hieronder) met `◄`/`►` om te wissel. `[Q]` verlaat na 'n gewone shell, ongeag watter oortjie oop is. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
 
 ### Volskerm op die fisiese skerm
 
@@ -204,9 +204,10 @@ Op die BEHEER-oortjie speel "Monitor Aan" presies dieselfde klank wat na die aux
 
 ### Oortjies
 
-Vier oortjies, gewissel met `◄`/`►`. Elke oortjie se opsies is genommer, herbegin by 1 — tik die nommer en druk Enter om dit te kies (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir die volledige ontwerp-agtergrond):
+Vyf oortjies, gewissel met `◄`/`►`. Elke oortjie se opsies is genommer, herbegin by 1 — tik die nommer en druk Enter om dit te kies (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir die volledige ontwerp-agtergrond):
 
-* **BEHEER** (verstek-oortjie) — Begin, Stop, Herbegin, Logs, Monitor aan/af, Media, Rugsteun
+* **BEHEER** (verstek-oortjie) — Begin, Stop, Herbegin, Monitor aan/af, Media, Rugsteun
+* **INLIGTING** — stelsel-inligting (netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue, CPU-temperatuur), elke keer regstreeks bygewerk, plus Logs
 * **INSTELLINGS** — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
 * **GEVAARLIK** — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
 * **TOETS** — foutsimulasie om failover-gedrag te toets sonder om regtig van die lug af te gaan (sien "Toets-oortjie" hieronder)
