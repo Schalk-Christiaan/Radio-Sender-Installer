@@ -204,11 +204,12 @@ Op die BEHEER-oortjie speel "Monitor Aan" presies dieselfde klank wat na die aux
 
 ### Oortjies
 
-Vyf oortjies, gewissel met `◄`/`►`. Elke oortjie se opsies is genommer, herbegin by 1 — tik die nommer en druk Enter om dit te kies (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir die volledige ontwerp-agtergrond):
+Ses oortjies, gewissel met `◄`/`►`. Elke oortjie se opsies is genommer, herbegin by 1 — tik die nommer en druk Enter om dit te kies (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir die volledige ontwerp-agtergrond):
 
-* **BEHEER** (verstek-oortjie) — Begin, Stop, Herbegin, Monitor aan/af, Media, Rugsteun
-* **INLIGTING** — stelsel-inligting (netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue, CPU-temperatuur), elke keer regstreeks bygewerk, plus Logs
-* **INSTELLINGS** — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer, kleurskema, sagteware-opdatering, herkonfigurasie
+* **BEHEER** (verstek-oortjie) — Begin, Stop, Herbegin, Monitor aan/af (suiwer lewendige-uitsending-beheer)
+* **INLIGTING** — stelsel-inligting (netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue, CPU-temperatuur), elke keer regstreeks bygewerk, plus Logs en Media (File Browser toegangsbesonderhede)
+* **INSTELLINGS** — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer
+* **ONDERHOUD** — Rugsteun (media-vouer), sagteware-opdatering, herkonfigurasie, kleurskema
 * **GEVAARLIK** — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
 * **TOETS** — foutsimulasie om failover-gedrag te toets sonder om regtig van die lug af te gaan (sien "Toets-oortjie" hieronder)
 

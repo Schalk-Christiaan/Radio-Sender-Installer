@@ -29,4 +29,15 @@ Two tabs were added after this ADR was first written, both following the same ru
 - **TOETS** — fault-injection tests (simulated source/internet loss, service-crash, heartbeat, soundcard). Added alongside the original three tabs.
 - **INLIGTING** — added later to hold STELSEL (network buffer, data usage, CPU/memory/temperature) plus Logs (moved off BEHEER). STELSEL was originally specified as always-visible under STATUS regardless of active tab (see the original paragraph above); the user later asked for it to move into its own tab together with Logs instead, so it no longer falls under the "always visible" rule — `update_stelsel_body()` in the dashboard now only runs while INLIGTING is the active tab.
 
-Current tab order: BEHEER (default) → INLIGTING → INSTELLINGS → GEVAARLIK → TOETS.
+Current tab order (before the ONDERHOUD split below): BEHEER (default) → INLIGTING → INSTELLINGS → GEVAARLIK → TOETS.
+
+## Update: ONDERHOUD tab (category-fit cleanup)
+
+An audit of every dashboard item against its tab found four items that didn't match their tab's category, purely by function rather than history:
+
+- **Media** (BEHEER → INLIGTING): it's a read-only display (File Browser credentials), not a live-broadcast control action like Begin/Stop/Herbegin/Monitor.
+- **Rugsteun**, **Opdateer sagteware**, **Herkonfigureer**, **Kleurskema** (previously split across BEHEER and INSTELLINGS → all four now in a new **ONDERHOUD** tab): none of these are live-broadcast control, and none map to a single `radioctl set <SLEUTEL>` value the way every other INSTELLINGS item does — Kleurskema in particular never touches `environment.conf` or the radio service at all, it only writes `~/.radio-dashboard-colors` for the `radio-admin` user. Grouping them separately keeps INSTELLINGS as "change one config key" and BEHEER as "control the live broadcast," with ONDERHOUD as "maintain the system/panel."
+
+**Wagwoorde wys stays in GEVAARLIK** despite being a read-only display like Media, not moved to INLIGTING — this was a deliberate call, not an oversight: GEVAARLIK may gain more genuinely destructive actions later, and the user wants credentials display kept alongside them rather than mixed into the general-purpose INLIGTING tab.
+
+Current tab order: BEHEER (default) → INLIGTING → INSTELLINGS → ONDERHOUD → GEVAARLIK → TOETS.

@@ -61,7 +61,7 @@ PLAYER_PID=""
 # cycle_tab()/read_main_key()). BEHEER is die verstek-oortjie omdat dit
 # die mees-gebruikte aksies bevat. Elke oortjie se opsies begin by 1 (sien
 # docs/adr/0001-dashboard-single-screen-tab-navigation.md vir waarom).
-TAB_NAMES=(BEHEER INLIGTING INSTELLINGS GEVAARLIK TOETS)
+TAB_NAMES=(BEHEER INLIGTING INSTELLINGS ONDERHOUD GEVAARLIK TOETS)
 ACTIVE_TAB="BEHEER"
 
 spinner_run() {
@@ -378,8 +378,9 @@ inline_pause() {
     printf '%s' "$HIDE_CURSOR"
 }
 
-# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Monitor 5) Media
-#     6) Rugsteun -----------------------------------------------------
+# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Monitor -----------
+# Suiwer lewendige-uitsending-beheer - alles wat net INLIGTING wys (Media)
+# of die stelsel/paneel onderhou (Rugsteun, Kleurskema, ens.) leef elders.
 handle_beheer_item() {
     local choice="$1"
 
@@ -399,12 +400,6 @@ handle_beheer_item() {
         4)
             toggle_listen
             ;;
-        5)
-            STATUS_MSG=$(sudo radioctl media 2>&1)
-            ;;
-        6)
-            spinner_run "Skep rugsteun..." sudo radioctl backup
-            ;;
         "")
             STATUS_MSG=""
             ;;
@@ -414,7 +409,8 @@ handle_beheer_item() {
     esac
 }
 
-# --- INLIGTING-oortjie: stelsel-syfers (buffer/data/CPU) + 1) Logs -----
+# --- INLIGTING-oortjie: stelsel-syfers (buffer/data/CPU) + 1) Logs
+#     2) Media --------------------------------------------------------
 handle_inligting_item() {
     local choice="$1"
 
@@ -425,6 +421,9 @@ handle_inligting_item() {
             printf '%s' "$HIDE_CURSOR"
             STATUS_MSG=""
             ;;
+        2)
+            STATUS_MSG=$(sudo radioctl media 2>&1)
+            ;;
         "")
             STATUS_MSG=""
             ;;
@@ -434,7 +433,7 @@ handle_inligting_item() {
     esac
 }
 
-# --- INSTELLINGS-oortjie: 1-10 -----------------------------------------
+# --- INSTELLINGS-oortjie: 1-7 (uitsluitlik "radioctl set"-sleutels) -----
 handle_instellings_item() {
     local choice="$1" val
 
@@ -477,7 +476,45 @@ handle_instellings_item() {
             inline_prompt "Maksimum stroom-buffer in sekondes: " val
             STATUS_MSG=$(sudo radioctl set STREAM_BUFFER_MAX "$val" 2>&1)
             ;;
-        8)
+        "")
+            STATUS_MSG=""
+            ;;
+        *)
+            STATUS_MSG="Onbekende opsie: $choice"
+            ;;
+    esac
+}
+
+# --- ONDERHOUD-oortjie: 1) Rugsteun 2) Opdateer sagteware
+#     3) Herkonfigureer 4) Kleurskema -------------------------------------
+# Stelsel/paneel-onderhoud - nie 'n lewendige-uitsending-aksie (BEHEER) of
+# 'n enkele "radioctl set"-sleutel (INSTELLINGS) nie.
+handle_onderhoud_item() {
+    local choice="$1" val
+
+    case "$choice" in
+        1)
+            spinner_run "Skep rugsteun..." sudo radioctl backup
+            ;;
+        2)
+            inline_prompt "Opdateer sagteware nou? (Y/N): " val
+            if [[ "$val" =~ ^[Yy]$ ]]; then
+                printf '%s' "$SHOW_CURSOR"
+                sudo radioctl update
+                inline_pause
+            fi
+            STATUS_MSG=""
+            ;;
+        3)
+            inline_prompt "Herkonfigureer nou? Dit loop die opstelling-vrae weer. (Y/N): " val
+            if [[ "$val" =~ ^[Yy]$ ]]; then
+                printf '%s' "$SHOW_CURSOR"
+                sudo radioctl reconfigure
+                inline_pause
+            fi
+            STATUS_MSG=""
+            ;;
+        4)
             printf '%s' "$SHOW_CURSOR"
             echo
             echo "Beskikbare kleurskemas:"
@@ -506,24 +543,6 @@ handle_instellings_item() {
             else
                 STATUS_MSG="Ongeldige keuse."
             fi
-            ;;
-        9)
-            inline_prompt "Opdateer sagteware nou? (Y/N): " val
-            if [[ "$val" =~ ^[Yy]$ ]]; then
-                printf '%s' "$SHOW_CURSOR"
-                sudo radioctl update
-                inline_pause
-            fi
-            STATUS_MSG=""
-            ;;
-        10)
-            inline_prompt "Herkonfigureer nou? Dit loop die opstelling-vrae weer. (Y/N): " val
-            if [[ "$val" =~ ^[Yy]$ ]]; then
-                printf '%s' "$SHOW_CURSOR"
-                sudo radioctl reconfigure
-                inline_pause
-            fi
-            STATUS_MSG=""
             ;;
         "")
             STATUS_MSG=""
@@ -635,6 +654,7 @@ handle_tab_item() {
         BEHEER)      handle_beheer_item "$choice" ;;
         INLIGTING)   handle_inligting_item "$choice" ;;
         INSTELLINGS) handle_instellings_item "$choice" ;;
+        ONDERHOUD)   handle_onderhoud_item "$choice" ;;
         GEVAARLIK)   handle_gevaarlik_item "$choice" ;;
         TOETS)       handle_toets_item "$choice" ;;
     esac
@@ -882,8 +902,7 @@ draw_beheer_tab() {
 
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
     local items=(
-        "1) Begin" "2) Stop" "3) Herbegin"
-        "$listen_item" "5) Media" "6) Rugsteun"
+        "1) Begin" "2) Stop" "3) Herbegin" "$listen_item"
     )
     print_command_grid items items "$sep_width"
 }
@@ -892,6 +911,7 @@ draw_inligting_tab() {
     echo "$STELSEL_BODY_CACHE"
     echo
     echo "  1) Logs"
+    echo "  2) Media"
 }
 
 draw_instellings_tab() {
@@ -900,8 +920,16 @@ draw_instellings_tab() {
         "1) Stroom URL (primêr)" "2) Rugsteun-stroom URL"
         "3) Musiek/sweeper-verhouding" "4) Stasienaam"
         "5) ALSA-klanktoestel" "6) Heartbeat URL"
-        "7) Maksimum stroom-buffer" "8) Kleurskema"
-        "9) Opdateer sagteware" "10) Herkonfigureer"
+        "7) Maksimum stroom-buffer"
+    )
+    print_command_grid items items "$sep_width"
+}
+
+draw_onderhoud_tab() {
+    # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
+    local items=(
+        "1) Rugsteun" "2) Opdateer sagteware"
+        "3) Herkonfigureer" "4) Kleurskema"
     )
     print_command_grid items items "$sep_width"
 }
@@ -964,6 +992,7 @@ draw_tabs_body() {
         BEHEER)      draw_beheer_tab ;;
         INLIGTING)   draw_inligting_tab ;;
         INSTELLINGS) draw_instellings_tab ;;
+        ONDERHOUD)   draw_onderhoud_tab ;;
         GEVAARLIK)   draw_gevaarlik_tab ;;
         TOETS)       draw_toets_tab ;;
     esac
