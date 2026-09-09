@@ -111,6 +111,17 @@ WAVE_FRAME=0
 STATION_BANNER_KEY=""
 STATION_BANNER_TEXT=""
 
+# Stelsel-inligting (bufferstat/datausage/sysstats) kas 5 sekondes lank
+# i.p.v. by ELKE draw() herbereken te word - elk van hierdie drie
+# "sudo radioctl"-oproepe het sy eie interne timeout (tot 2-3s vir
+# socat/vnstat, sien radioctl.sh), en draw() kan tydens Monitor-speel so
+# gereeld soos elke sekonde loop. Sonder hierdie kas kan 'n stadige/hangende
+# socat of vnstat die hele lewendige skerm (ON AIR, klankvlak-balk) op ELKE
+# verversing vertraag, nie net wanneer die syfers werklik ververs word nie.
+STELSEL_BODY_CACHE=""
+STELSEL_BODY_TS=0
+STELSEL_REFRESH_SECS=5
+
 # Genereer 'n groot bloklettter-baniere vir die stasienaam via 'toilet'
 # (indien geïnstalleer), begrens tot die beskikbare terminaalbreedte, en
 # kas dit in 'n GLOBALE veranderlike. Belangrik: hierdie funksie moet as
@@ -276,6 +287,29 @@ update_station_banner() {
     fi
 
     STATION_BANNER_KEY="$key"
+}
+
+# Moet, soos update_station_banner(), as 'n GEWONE opdrag aangeroep word
+# (nie via "$(...)" nie) - anders gaan STELSEL_BODY_CACHE/_TS se
+# toekennings verlore sodra die subshell klaar is, en die kas sou nooit
+# werk nie.
+update_stelsel_body() {
+    local now
+    now=$(date +%s)
+
+    if [ -n "$STELSEL_BODY_CACHE" ] && [ $(( now - STELSEL_BODY_TS )) -lt "$STELSEL_REFRESH_SECS" ]; then
+        return
+    fi
+
+    # "Skyfspasie" word uit sysstats se uitset gefiltreer, want status_body
+    # (elders in draw()) wys dit klaar (sien cmd_status/cmd_sysstats in
+    # radioctl.sh).
+    STELSEL_BODY_CACHE=$(
+        sudo radioctl bufferstat
+        sudo radioctl datausage
+        sudo radioctl sysstats | grep -v '^Skyfspasie'
+    )
+    STELSEL_BODY_TS="$now"
 }
 
 fake_wave() {
@@ -491,18 +525,32 @@ read_main_key() {
 
     if [[ "$c1" =~ ^[0-9]$ ]]; then
         printf '%sKies: %s' "$SHOW_CURSOR" "$c1"
-        local rest=""
-        read -r rest
+        local rest="" rest_status
+        read -r -t 15 rest
+        rest_status=$?
         printf '%s' "$HIDE_CURSOR"
+        # 'n Tydgrens hier verhoed dat 'n vergete/toevallige syfer die
+        # skerm vir ewig laat hang wag vir Enter - as dit uittyd, gooi ons
+        # die halwe invoer eenvoudig weg (MAIN_INPUT_TYPE bly "none") i.p.v.
+        # dit as 'n opsienommer te ontleed.
+        [ "$rest_status" -ne 0 ] && return 0
         MAIN_INPUT_TYPE="line"
         MAIN_INPUT_LINE="${c1}${rest}"
         return 0
     fi
 
     if [ "$c1" = $'\033' ]; then
-        # Geen doelveranderlike nie - "read" gebruik dan self $REPLY, wat ons
-        # doelbewus nooit lees nie; ons wil net die res van die volgorde weggooi.
-        IFS= read -rsN2 -t 0.05 || true
+        # Lees greep-vir-greep, presies soos die vorige oortjie-weergawe se
+        # parse_settings_escape() gedoen het: as die volgende greep nie '['
+        # is nie (of niks kom betyds nie), gooi ons NIKS bykomend weg nie -
+        # 'n vinnige regte toetsdruk direk ná 'n los ESC bly dus intak. Kom
+        # daar wel '[' (die tipiese pyltjie-voorvoegsel), verbruik net EEN
+        # verdere greep (die pyltjie se laaste letter) en gooi dit weg.
+        local c2
+        IFS= read -rsN1 -t 0.05 c2 || return 0
+        if [ "$c2" = "[" ]; then
+            IFS= read -rsN1 -t 0.2 || true
+        fi
         return 0
     fi
 
@@ -675,17 +723,10 @@ draw() {
         STATION_BANNER_TEXT="${PRIMARY}${BOLD}${station_name}${RESET}"
     fi
 
-    # Stelsel-inligting (netwerk-buffer, databruik, CPU/geheue/temperatuur)
-    # was voorheen agter 'n aparte Instellings-oortjie weggesteek - dit
-    # loop nou elke verversing saam met die res van STATUS. "Skyfspasie"
-    # word uit sysstats se uitset gefiltreer, want status_body wys dit
-    # klaar (sien cmd_status/cmd_sysstats in radioctl.sh).
-    local stelsel_body
-    stelsel_body=$(
-        sudo radioctl bufferstat
-        sudo radioctl datausage
-        sudo radioctl sysstats | grep -v '^Skyfspasie'
-    )
+    # update_stelsel_body moet ook HIER (buite die subshell) loop, om
+    # dieselfde rede as update_station_banner - sien die kommentaar by die
+    # funksie self.
+    update_stelsel_body
 
     local frame
     frame=$(
@@ -707,7 +748,7 @@ draw() {
 
         [ "$compact" = false ] && echo "$(section_header "STATUS" "$sep_width" "$SECONDARY")"
         echo "$status_body"
-        echo "$stelsel_body"
+        echo "$STELSEL_BODY_CACHE"
 
         if [ "$PLAYING" = true ]; then
             echo "  ${GREEN}▶ Monitor speel${RESET}   $(fake_wave)"
