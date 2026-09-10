@@ -35,21 +35,6 @@ file.write(
   source_override_path
 )
 
-source_override = ref("")
-
-def read_source_override()
-  source_override := (
-    if file.exists(source_override_path) then
-      string.trim(file.contents(source_override_path))
-    else
-      ""
-    end
-  )
-  2.0
-end
-
-thread.run.recurrent(delay=2.0, read_source_override)
-
 # Radio stroom
 #
 # blank.strip maak die bron "onbeskikbaar" sodra dit stil raak, al bly
@@ -78,24 +63,37 @@ radio =
 # __BACKUP_RADIO_INSERT_POINT__
 
 # Musiek
+#
+# Die ongewikkelde (rou) playlist() hieronder hou sy égte gereedheid -
+# is_ready() raak vals as die vouer leeg is. mksafe() daarna maak die
+# bron "onfeilbaar" (altyd gereed, met stilte as daar niks is nie) sodat
+# backup_program altyd 'n geldige laaste-uitweg vir switch() bly. Die
+# rou verwysing (emergency_music_raw) word verderaan gebruik om regtig
+# leë musiek-/sweeper-vouers op te spoor - sien read_source_override().
 
-emergency_music =
-  mksafe(
-    playlist(
-      mode="random",
-      music_folder
-    )
+emergency_music_raw =
+  playlist(
+    mode="random",
+    reload=playlist_reload,
+    reload_mode="seconds",
+    prefetch=playlist_prefetch,
+    music_folder
   )
+
+emergency_music = mksafe(emergency_music_raw)
 
 # Sweepers
 
-sweepers =
-  mksafe(
-    playlist(
-      mode="random",
-      sweeper_folder
-    )
+sweepers_raw =
+  playlist(
+    mode="random",
+    reload=playlist_reload,
+    reload_mode="seconds",
+    prefetch=playlist_prefetch,
+    sweeper_folder
   )
+
+sweepers = mksafe(sweepers_raw)
 
 # Backup program
 
@@ -112,6 +110,42 @@ backup_program =
       ]
     )
   )
+
+# Bron-oorheersing (radioctl wissel) - lees elke 2 sekondes.
+#
+# "noodmusiek" word doelbewus verlaag na "" (outomaties) as die
+# musiek-/sweeper-vouers werklik leeg is: sonder hierdie kontrole sou
+# switch() vaskyk op 'n stil backup_program (mksafe maak dit "gereed"
+# ondanks leë vouers), en NOOIT terugval na die lewendige strome toe nie
+# - presies die "dooie lug"-toestand wat hierdie hele stelsel juis moet
+# voorkom. primer/rugsteun-oorheersings het nie hierdie kontrole nodig
+# nie: switch() se ingeboude is_ready()-toets sien reeds self raak as
+# 'n regte netwerkstroom afgaan.
+
+source_override = ref("")
+
+def read_source_override()
+  requested =
+    if file.exists(source_override_path) then
+      string.trim(file.contents(source_override_path))
+    else
+      ""
+    end
+  source_override := (
+    if
+      requested == "noodmusiek"
+      and not emergency_music_raw.is_ready()
+      and not sweepers_raw.is_ready()
+    then
+      ""
+    else
+      requested
+    end
+  )
+  2.0
+end
+
+thread.run.recurrent(delay=2.0, read_source_override)
 
 # Hoof bron
 #
