@@ -40,7 +40,12 @@ file.write(
 # blank.strip maak die bron "onbeskikbaar" sodra dit stil raak, al bly
 # die HTTP-koppeling tegnies gekoppel - só skakel fallback() ook oor by
 # "dooie lug" (bv. 'n koderfout by die bron), nie net by 'n werklike
-# ontkoppeling nie.
+# ontkoppeling nie. max_blank=3.0 (verstek is 20 sekondes!) verkort die
+# hoeveelheid stilte wat 'n luisteraar ooit sou hoor voordat daar
+# oorgeskakel word - 'n regte, kort stiltetjie tussen snitte by die
+# bron self sal nie per ongeluk 'n wissel veroorsaak nie, want
+# min_noise=0.0 (verstek) beteken enige geluid breek die stilte-telling
+# dadelik weer af.
 #
 # buffer() met 'n begrensde max= voorkom dat 'n klein klok-verskil tussen
 # die netwerkstroom en die klankkaart oor ure/dae onbeperk opbou tot 'n
@@ -64,6 +69,7 @@ radio =
   buffer(
     max=stream_buffer_max,
     blank.strip(
+      max_blank=3.0,
       input.http(
         self_sync=false,
         id="radio_input",
@@ -78,12 +84,13 @@ radio =
 
 # Musiek
 #
-# Die ongewikkelde (rou) playlist() hieronder hou sy égte gereedheid -
-# is_ready() raak vals as die vouer leeg is. mksafe() daarna maak die
-# bron "onfeilbaar" (altyd gereed, met stilte as daar niks is nie) sodat
-# backup_program altyd 'n geldige laaste-uitweg vir switch() bly. Die
-# rou verwysing (emergency_music_raw) word verderaan gebruik om regtig
-# leë musiek-/sweeper-vouers op te spoor - sien read_source_override().
+# Bly doelbewus ONGEWIKKEL (nie in mksafe() toegedraai nie) - hul
+# egte is_ready() (vals as die vouer leeg is) word verderaan gebruik om
+# (a) regtig leë musiek-/sweeper-vouers op te spoor (sien
+# read_source_override()) en (b) backup_program (hieronder) na die
+# ingeboude noodtoon te laat oorskakel as albei werklik leeg is. Die
+# mksafe()-waarborg ("altyd gereed") sit op backup_program self, nie
+# hier nie.
 
 emergency_music_raw =
   playlist(
@@ -99,8 +106,6 @@ emergency_music_raw =
     music_folder
   )
 
-emergency_music = mksafe(emergency_music_raw)
-
 # Sweepers
 
 sweepers_raw =
@@ -112,20 +117,44 @@ sweepers_raw =
     sweeper_folder
   )
 
-sweepers = mksafe(sweepers_raw)
+# Noodtoon - installeerder se eie ingeboude klank (nie deel van die
+# admin se Musiek/Sweepers nie), sodat daar selfs met heeltemal leë
+# media-vouers nooit werklike stilte is nie. Word deur scripts/liquidsoap.sh
+# eenmalig met ffmpeg gegenereer as dit nog nie bestaan nie.
+
+emergency_fallback_folder = "/opt/radio-orania/liquidsoap/noodklank"
+
+emergency_fallback =
+  mksafe(
+    playlist(
+      mode="randomize",
+      emergency_fallback_folder
+    )
+  )
 
 # Backup program
+#
+# fallback() (nie mksafe(rotate(...)) direk nie) sodat, as die admin se
+# Musiek/Sweepers ALBEI werklik leeg is, dit na die noodtoon oorskakel
+# i.p.v. op stilte vas te sit - rotate() self raak nie-gereed wanneer
+# al sy tak-bronne (die rou, ongewikkelde verwysings) nie-gereed is.
 
 backup_program =
   mksafe(
-    rotate(
-      weights=[
-        music_weight,
-        sweeper_weight
-      ],
+    fallback(
+      track_sensitive=false,
       [
-        emergency_music,
-        sweepers
+        rotate(
+          weights=[
+            music_weight,
+            sweeper_weight
+          ],
+          [
+            emergency_music_raw,
+            sweepers_raw
+          ]
+        ),
+        emergency_fallback
       ]
     )
   )
@@ -178,16 +207,32 @@ thread.run.recurrent(delay=2.0, read_source_override)
 # toe, doelbewus nie na die ánder stroom nie, want 'n eksplisiete keuse
 # vir een stroom moet nie stilweg na die ander omruil nie.
 
+# 'n Skielike knip by elke bronwissel (bv. stroom -> musiek by 'n
+# ontkoppeling) klink self soos 'n hoorbare hik. crossfade() oorvloei
+# die uitgaande en inkomende bron oor 2 sekondes i.p.v. 'n skielike
+# knip. list.map() bou 'n oorvloei-funksie per inskrywing in
+# switch_sources hieronder, ongeag hoeveel takke daar (met/sonder
+# rugsteunstroom) werklik is - moet dus NIE self met die hand
+# opgedateer word as die predikate-lys groei/krimp nie.
+
+def crossfade(old, new) =
+  add(normalize=false, [fade.out(duration=2.0, old), fade.in(duration=2.0, new)])
+end
+
+switch_sources =
+  [
+    ({source_override() == "primer" and radio_connected()}, radio),
+    ({source_override() == "noodmusiek"}, backup_program),
+    ({source_override() == "" and primary_source == "1" and radio_connected()}, radio),
+# __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__
+    ({true}, backup_program)
+  ]
+
 main =
   switch(
     track_sensitive=false,
-    [
-      ({source_override() == "primer" and radio_connected()}, radio),
-      ({source_override() == "noodmusiek"}, backup_program),
-      ({source_override() == "" and primary_source == "1" and radio_connected()}, radio),
-# __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__
-      ({true}, backup_program)
-    ]
+    transitions=list.map(fun (pair) -> crossfade, switch_sources),
+    switch_sources
   )
 
 # Klankvlak-egalisering, sodat die stroom en plaaslike musiek nie skielik

@@ -14,6 +14,7 @@ backup_radio =
   buffer(
     max=stream_buffer_max,
     blank.strip(
+      max_blank=3.0,
       input.http(
         self_sync=false,
         id="backup_input",

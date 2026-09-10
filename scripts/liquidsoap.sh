@@ -47,6 +47,23 @@ fi
 
 sed -i "/^# __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__$/d" "$TARGET_FILE"
 
+progress 40 "Skep noodtoon"
+
+# Ingeboude laaste-uitweg-klank (radio.liq se emergency_fallback), apart
+# van die admin se eie Musiek/Sweepers, sodat daar selfs met heeltemal
+# leë media-vouers nooit werklike stilte is nie. Eenmalig gegenereer -
+# word nie oorskryf as dit reeds bestaan nie (bv. by 'n latere
+# "radioctl set").
+EMERGENCY_DIR="$TARGET_DIR/noodklank"
+EMERGENCY_FILE="$EMERGENCY_DIR/noodtoon.mp3"
+
+mkdir -p "$EMERGENCY_DIR"
+
+if [ ! -f "$EMERGENCY_FILE" ]; then
+    ffmpeg -y -f lavfi -i "sine=frequency=440:duration=15" \
+        -af "volume=0.15" "$EMERGENCY_FILE" -loglevel error
+fi
+
 progress 50 "Vul konfigurasie in"
 
 sed -i "s|__STREAM_URL__|$(escape_sed_replacement "$STREAM_URL")|g" "$TARGET_FILE"
