@@ -1,6 +1,6 @@
 # Radio Orania Sender Installer
 
-'n Eenvoudige Debian-installer vir 'n radiosender wat 'n internetstroom speel en outomaties na noodmusiek oorskakel by wegval.
+'n Debian-installer vir 'n radiosender: speel 'n internetstroom, skakel outomaties na noodmusiek by wegval.
 
 ![Beheerpaneel-skerm](docs/images/beheerpaneel-skerm.png)
 
@@ -8,20 +8,13 @@
 
 ## Kenmerke
 
-* Internet radiostroom afspeel
-* Opsionele rugsteun-stroom voor daar na noodmusiek oorgeskakel word
-* Outomatiese failover na noodmusiek (insluitend stilte-opsporing - skakel ook oor as 'n stroom "dooie lug" uitstuur, nie net by 'n werklike ontkoppeling nie)
-* Outomatiese terugskakeling na die stroom
-* Klankvlak-egalisering tussen stroom en plaaslike musiek
-* Begrensde skok-buffer (instelbaar) wat verhoed dat 'n FM-vertraging oor lang looptye onbeperk opbou
-* ALSA klankuitset
-* Systemd diens wat as 'n toegewyde, onbevoorregte gebruiker loop
-* File Browser vir media bestuur
-* Heartbeat ondersteuning
-* `radioctl` beheerpaneel vir status, herbegin, logs en opdatering
-* Opsionele beheerpaneel-skerm wat outomaties by SSH- of fisiese-skerm-aanmelding verskyn
-* Debian 13 ondersteuning
-* Eenvoudige installasie
+* Internetstroom-afspeling, met opsionele rugsteun-stroom voor noodmusiek
+* Outomatiese failover (ook by stilte/"dooie lug", nie net ontkoppeling) en terugskakeling
+* Klankvlak-egalisering en begrensde skok-buffer teen FM-vertraging
+* ALSA-klankuitset, Systemd-diens as toegewyde onbevoorregte gebruiker
+* File Browser vir media, heartbeat-ondersteuning
+* `radioctl` CLI en opsionele beheerpaneel-skerm
+* Debian 13, eenvoudige installasie
 
 ---
 
@@ -50,61 +43,50 @@
                      FM Sender
 ```
 
-Elke bron (hoofstroom en rugsteun-stroom) word deurlopend vir stilte gemonitor - as een "dooie lug" uitstuur (bv. 'n koderfout by die bron) terwyl dit tegnies nog gekoppel is, skakel Liquidsoap outomaties na die volgende bron in die ry oor. `radioctl status` en die beheerpaneel-skerm wys watter bron op enige oomblik werklik op-lug is.
+Elke bron word deurlopend vir stilte gemonitor — "dooie lug" (bv. 'n koderfout) veroorsaak dieselfde outomatiese oorskakeling as 'n regte ontkoppeling. `radioctl status` en die beheerpaneel-skerm wys watter bron werklik op-lug is.
 
 ### Waarom FM-vertraging oor tyd kan opbou
 
-Die netwerkstroom en die rekenaar se klankkaart loop nooit op presies dieselfde klok nie; oor ure of dae kan 'n klein verskil geleidelik opbou tot 'n merkbare vertraging (bv. 2 minute) op die FM-uitsending, en 'n herbegin van die rekenaar stel dit weer op nul. Om dit te voorkom word elke netwerkstroom deur 'n begrensde skok-buffer gestuur ("Maksimum stroom-buffer" - instelbaar via Instellings of `radioctl set STREAM_BUFFER_MAX <sekondes>`): sodra die buffer die ingestelde maksimum oorskry, laat Liquidsoap outomaties 'n bietjie oudio val om weer by te kom, i.p.v. dat die vertraging onbeperk bly opbou.
+Netwerkstroom en klankkaart loop nie op dieselfde klok nie — 'n klein verskil bou oor ure/dae op tot 'n merkbare FM-vertraging (herbegin stel dit weer op nul). 'n Begrensde skok-buffer ("Maksimum stroom-buffer", instelbaar via Instellings of `radioctl set STREAM_BUFFER_MAX <sekondes>`) laat Liquidsoap outomaties 'n bietjie oudio val sodra die maksimum oorskry word, i.p.v. onbeperk op te bou.
 
 ---
 
 ## Vereistes
 
-* Debian 13
+* Debian 13 (installer waarsku, blokkeer nie noodwendig, op ander weergawes)
 * Internetverbinding
 * ALSA-versoenbare klankkaart
-* Root toegang
-
-Die installer waarsku (maar blokkeer nie noodwendig nie) as dit op 'n ander weergawe as Debian 13 loop.
+* Root-toegang
 
 ---
 
 ## Installasie
 
-Kloon die projek:
-
 ```bash
 git clone https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git
 cd Radio-Sender-Installer
-```
-
-Begin die installer:
-
-```bash
 sudo bash install.sh
 ```
 
-Verbose modus (wys volledige uitset van elke stap op die skerm; alles word in elk geval altyd na `installer.log` geskryf):
+Verbose modus (volledige uitset per stap; `installer.log` kry dit in elk geval altyd):
 
 ```bash
 sudo bash install.sh --verbose
 ```
 
-Die installer word aan die einde outomaties na `/opt/radio-orania/installer` gekopieer sodat `radioctl reconfigure` en `radioctl update` later sonder die oorspronklike kloon kan werk.
+Die installer word na `/opt/radio-orania/installer` gekopieer sodat `radioctl reconfigure`/`update` later sonder die oorspronklike kloon werk.
 
 ---
 
 ## Sekuriteit
 
-* Die radio-, File Browser- en heartbeat-dienste loop almal as 'n toegewyde, onbevoorregte gebruiker (`radio-orania`), nie as root nie.
-* Gebruikersinvoer tydens opstelling word gevalideer en veilig ge-kwoteer voordat dit in konfigurasie- of stelsel-lêers geskryf word.
-* `environment.conf` en File Browser se `credentials.txt` is slegs vir die eienaar leesbaar (`chmod 600`).
+* Radio-, File Browser- en heartbeat-dienste loop as toegewyde, onbevoorregte gebruiker (`radio-orania`), nie root nie
+* Gebruikersinvoer word gevalideer en veilig ge-kwoteer voor dit na konfigurasie-/stelsel-lêers geskryf word
+* `environment.conf` en File Browser se `credentials.txt` is `chmod 600`
 
 ---
 
 ## Media Struktuur
-
-Plaas musiek en sweepers in:
 
 ```text
 /opt/radio-orania/media
@@ -116,188 +98,118 @@ Plaas musiek en sweepers in:
 
 ## File Browser
 
-Indien geaktiveer tydens installasie kan media bestuur word deur File Browser.
-
-Die URL, gebruiker en wagwoord word gestoor in:
-
-```text
-/opt/radio-orania/filebrowser/credentials.txt
-```
-
-'n Herkonfigurasie skep nie 'n nuwe wagwoord of oorskryf bestaande File Browser-gebruikers nie — die databasis word slegs geskep by 'n eerste installasie.
+Indien geaktiveer, bestuur media deur File Browser. URL/gebruiker/wagwoord in `/opt/radio-orania/filebrowser/credentials.txt`. 'n Herkonfigurasie skep nie 'n nuwe wagwoord of oorskryf bestaande gebruikers nie — die databasis word net by eerste installasie geskep.
 
 ---
 
 ## `radioctl` Beheerpaneel
 
-Na installasie is 'n `radioctl` opdrag beskikbaar om die sender te bestuur sonder om `systemctl`/`journalctl` paaie te onthou:
-
 ```text
-radioctl dash           Bring die beheerpaneel-skerm terug (bv. ná 'n shell-escape)
-radioctl status         Wys status van al die dienste, sender naam en stroom URL
-radioctl start          Begin die radio-diens
-radioctl stop           Stop die radio-diens
-radioctl restart        Herbegin die radio-diens
-radioctl logs [-f]      Wys onlangse logs (-f om te volg)
-radioctl test-stream    Toets of die stroom URL bereikbaar is
-radioctl media          Wys File Browser toegangsbesonderhede
-radioctl backup         Skep 'n rugsteun van die mediavouer
-radioctl monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
-radioctl bufferstat     Wys die regstreekse netwerk-buffer van die aktiewe bron
-radioctl datausage      Wys data-verbruik vandag/hierdie maand (vnstat)
-radioctl sysstats       Wys CPU-las, geheue, skyfspasie en CPU-temperatuur
-radioctl set <S> <W>    Verander 'n instelling (STREAM_URL, BACKUP_STREAM_URL, MUSIC_WEIGHT,
-                        SWEEPER_WEIGHT, ALSA_DEVICE, STATION_NAME, HEARTBEAT_URL,
-                        STREAM_BUFFER_MAX)
-radioctl passwords      Wys al die gestoorde wagwoorde (File Browser, beheerpaneel, monitor)
-radioctl reconfigure    Loop die opstelling-assistent weer
-radioctl update         Trek die jongste weergawe en herinstalleer
-radioctl uninstall      Verwyder die hele installasie
+radioctl dash                 Bring die beheerpaneel-skerm terug
+radioctl status               Status van al die dienste, sender naam, stroom URL
+radioctl start/stop/restart   Begin / stop / herbegin die radio-diens
+radioctl logs [-f]            Onlangse logs (-f om te volg)
+radioctl test-stream          Toets of die stroom URL bereikbaar is
+radioctl media                File Browser toegangsbesonderhede
+radioctl backup               Rugsteun van die mediavouer
+radioctl monitor-url          Netwerk-URL om die op-lug mengsel te monitor
+radioctl bufferstat           Regstreekse netwerk-buffer van die aktiewe bron
+radioctl datausage            Data-verbruik vandag/maand (vnstat)
+radioctl sysstats             CPU-las, geheue, skyfspasie, CPU-temperatuur
+radioctl set <S> <W>          Verander 'n instelling (STREAM_URL, BACKUP_STREAM_URL,
+                              MUSIC_WEIGHT, SWEEPER_WEIGHT, ALSA_DEVICE, STATION_NAME,
+                              HEARTBEAT_URL, STREAM_BUFFER_MAX)
+radioctl passwords            Al die gestoorde wagwoorde
+radioctl reconfigure          Loop die opstelling-assistent weer
+radioctl update               Trek jongste weergawe en herinstalleer
+radioctl uninstall            Verwyder die hele installasie
 
-Foutsimulasie (ook direk via radioctl, sien "Toets-oortjie" hieronder):
-radioctl test-source-status <1|2>   Wys of bron 1/2 tans gestop (gesimuleer) is
-radioctl test-source-stop <1|2>     Simuleer bron 1/2 se wegval
-radioctl test-source-start <1|2>    Herstel bron 1/2
-radioctl test-internet-status       Wys of die toets-internetblokkade tans aktief is
-radioctl test-internet-block        Blokkeer alle nuwe uitgaande verkeer (60s outo-herstel)
-radioctl test-internet-restore      Herstel internet dadelik
-radioctl test-service-crash         Maak radio-orania.service dood (toets outo-herstel)
-radioctl test-heartbeat             Stuur een heartbeat-oproep en wys slaag/faal
-radioctl test-soundcard             Speel 'n toets-toon na die ALSA-toestel
+Foutsimulasie (sien "Toets-oortjie" hieronder):
+radioctl test-source-status/-stop/-start <1|2>
+radioctl test-internet-status/-block/-restore
+radioctl test-service-crash
+radioctl test-heartbeat
+radioctl test-soundcard
 ```
 
-`start`/`stop`/`restart`/`backup`/`set`/`passwords`/`reconfigure`/`update`/`uninstall` vereis root (`sudo radioctl ...`), soos ook `test-source-stop`/`test-source-start`/`test-internet-block`/`test-internet-restore`/`test-service-crash`/`test-soundcard`.
+Vereis root (`sudo radioctl ...`): start, stop, restart, backup, set, passwords, reconfigure, update, uninstall, en die toets-opdragte wat werklik iets verander (test-source-stop/-start, test-internet-block/-restore, test-service-crash, test-soundcard).
 
 ---
 
 ## Beheerpaneel-skerm
 
-Opsioneel tydens installasie: 'n volskerm, outomaties-vernuwende beheerpaneel wat verskyn sodra jy aanmeld — hetsy via SSH, hetsy op 'n skerm wat fisies aan die toestel gekoppel is (tty1 word outomaties aangemeld).
+Opsioneel: 'n volskerm, outomaties-vernuwende beheerpaneel wat verskyn by aanmelding (SSH of fisies op tty1). Loop as beperkte `radio-admin`-gebruiker met net `sudo`-toegang tot `radioctl`. Wagwoord eenmalig gewys tydens installasie, gestoor in `/opt/radio-orania/config/radio-admin-credentials.txt`.
 
-Dit loop onder 'n aparte, beperkte `radio-admin` gebruiker (nie root nie) met slegs toegang tot `radioctl` via `sudo`. Die gebruiker en wagwoord word een keer gewys tydens installasie, en gestoor in:
-
-```text
-/opt/radio-orania/config/radio-admin-credentials.txt
-```
-
-Die skerm se opskrif wys die gekonfigureerde sender naam as 'n groot bloklettter-baniere met 'n 3D-skaduwee-effek (via `toilet`, outomaties aangepas by die terminaal se breedte — val terug na gewone teks op klein skerms), en die res van die skerm pas ook outomaties by die terminaal se grootte aan. Die STATUS-afdeling (`radioctl status`-inligting — aktiewe bron, totale aanlyn-tyd) bly altyd sigbaar, ongeag watter oortjie hieronder oop is.
-
-Daaronder is een deurlopende oortjie-area (BEHEER / INLIGTING / INSTELLINGS / GEVAARLIK / TOETS — sien "Oortjies" hieronder) met `◄`/`►` om te wissel. `[Q]` verlaat na 'n gewone shell, ongeag watter oortjie oop is. 'n Lewendige ON AIR-aanduiding, watter bron werklik op-lug is, en 'n klankvlak-balk wys reg op dieselfde skerm — daar's geen aparte venster of oorname van die terminaal nie, en elke reël word individueel skoongemaak sodat 'n korter nuwe status (bv. "loop nie" na "loop") nooit stert-karakters van 'n vorige, langer reël agterlaat nie.
+STATUS (aktiewe bron, aanlyn-tyd, dienste, skyfspasie) bly altyd sigbaar. Daaronder wissel `◄`/`►` tussen ses oortjies; `[Q]` verlaat altyd na 'n gewone shell.
 
 ### Volskerm op die fisiese skerm
 
-Die Linux-teks-konsole (tty1) gebruik gewoonlik 'n groot verstek-lettertipe wat op 'n breë monitor net 'n klein deel van die skerm benut. Wanneer die beheerpaneel-skerm geïnstalleer word, stel die installer outomaties 'n baie kleiner konsole-lettertipe in (Terminus 12x6), sodat aansienlik meer kolomme en reëls op dieselfde fisiese skerm pas — die dashboard se bestaande aanpas-logika (hierbo) benut dit outomaties, sonder verdere opstelling.
-
-As die skerm steeds nie die volle breedte benut nie (raar op moderne hardeware, maar moontlik as die konsole nie op die skerm se volle native resolusie loop nie), kan 'n GRUB-kernparameter dit regstel — pas die resolusie by jou eie skerm aan:
+Die installer stel outomaties 'n kleiner konsole-lettertipe (Terminus 12x6) op tty1 sodat meer inhoud pas. Indien die skerm nog nie die volle breedte gebruik nie, stel die resolusie via GRUB:
 
 ```bash
 sudo nano /etc/default/grub
-# Voeg by GRUB_CMDLINE_LINUX_DEFAULT, bv:
-#   GRUB_CMDLINE_LINUX_DEFAULT="video=1920x1080@60"
+# GRUB_CMDLINE_LINUX_DEFAULT="video=1920x1080@60"
 sudo update-grub
 sudo reboot
 ```
 
-Om die lettertipe self weer te verander (groter/kleiner), gebruik `sudo dpkg-reconfigure console-setup`.
+Lettertipe self verstel: `sudo dpkg-reconfigure console-setup`.
 
 ### Monitor
 
-Op die BEHEER-oortjie speel "Monitor Aan" presies dieselfde klank wat na die aux/ALSA-uitset gaan (stroom óf noodmusiek, wat ook al werklik op-lug is) plaaslik via `mpv`, met 'n klankvlak-balk wat regstreeks op die dashboard opdateer. Kies dieselfde opsie weer (dan "Monitor Af") om te stop — doelbewus 'n aparte opsie van "Stop", wat die werklike uitsending stop. (`radioctl monitor-url` gee die onderliggende netwerk-URL indien jy dit elders, bv. in 'n blaaiser, wil oopmaak.)
+BEHEER se "Monitor Aan" speel plaaslik (via `mpv`) presies wat op-lug gaan, met 'n regstreekse klankvlak-balk. Weer kies ("Monitor Af") om te stop — apart van "Stop", wat die werklike uitsending stop. (`radioctl monitor-url` gee die netwerk-URL vir elders, bv. 'n blaaiser.)
 
 ### Oortjies
 
-Ses oortjies, gewissel met `◄`/`►`. Elke oortjie se opsies is genommer, herbegin by 1 — tik die nommer en druk Enter om dit te kies (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir die volledige ontwerp-agtergrond):
+Genommer per oortjie, herbegin by 1 — tik die nommer, druk Enter (sien `docs/adr/0001-dashboard-single-screen-tab-navigation.md` vir ontwerp-agtergrond):
 
-* **BEHEER** (verstek-oortjie) — Begin, Stop, Herbegin, Monitor aan/af (suiwer lewendige-uitsending-beheer)
-* **INLIGTING** — stelsel-inligting (netwerk-buffer, data-verbruik vandag/hierdie maand, CPU-las, geheue, CPU-temperatuur), elke keer regstreeks bygewerk, plus Logs en Media (File Browser toegangsbesonderhede)
-* **INSTELLINGS** — stroom URL (primêr en rugsteun), stasienaam, ALSA-klanktoestel, musiek/sweeper-verhouding, Heartbeat URL, maksimum stroom-buffer
-* **ONDERHOUD** — Rugsteun (media-vouer), sagteware-opdatering, herkonfigurasie, kleurskema
-* **GEVAARLIK** — wagwoorde wys, of die hele installasie verwyder (met bevestiging)
-* **TOETS** — foutsimulasie om failover-gedrag te toets sonder om regtig van die lug af te gaan (sien "Toets-oortjie" hieronder)
+* **BEHEER** (verstek) — Begin, Stop, Herbegin, Monitor aan/af
+* **INLIGTING** — stelsel-syfers (buffer, data, CPU, geheue, temperatuur), Logs, Media
+* **INSTELLINGS** — stroom URL's, stasienaam, ALSA-toestel, musiek/sweeper-verhouding, Heartbeat URL, stroom-buffer
+* **ONDERHOUD** — Rugsteun, sagteware-opdatering, herkonfigurasie, kleurskema
+* **GEVAARLIK** — wagwoorde wys, alles verwyder
+* **TOETS** — foutsimulasie (sien hieronder)
 
-Al die INSTELLINGS "verander"-opsies word dadelik toegepas en herbegin die diens waar nodig. Dieselfde instellings is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar (bv. `sudo radioctl set BACKUP_STREAM_URL "https://..."`, of `sudo radioctl set HEARTBEAT_URL ""` om dit af te skakel).
-
-Dit werk deur 'n klein plaaslike Icecast-aftakking wat Liquidsoap direk voed (`output.icecast`) — dieselfde reeds-berekende mengsel word bloot ook daarheen gestuur. Die regstreekse netwerk-buffer en data-verbruik-syfers vereis onderskeidelik 'n plaaslike Liquidsoap-beheersocket (`socat`, slegs plaaslik bereikbaar - geen netwerk-poort nie) en `vnstat` — albei word saam met die beheerpaneel-skerm geïnstalleer.
+Elke INSTELLINGS-wysiging pas dadelik toe en herbegin die diens waar nodig; dieselfde sleutels is ook direk via `radioctl set <SLEUTEL> <WAARDE>` verstelbaar.
 
 ### Toets-oortjie
 
-Elke toets is doelbewus omkeerbaar, en raak nooit meer as wat nodig is nie:
+Elke toets is omkeerbaar en raak nooit meer as nodig nie:
 
-* **Bron 1 / Bron 2: Simuleer wegval** — stop/begin die betrokke stroom se Liquidsoap-inset via die plaaslike beheersocket (dieselfde meganisme as die netwerk-buffer-syfer). Forseer 'n regte failover na die volgende bron in die ry; heeltemal plaaslik en omkeerbaar (kies weer om te herstel).
-* **Internet: Simuleer verlies** — blokkeer ALLE nuwe uitgaande verkeer (`iptables`), maar laat reeds-gevestigde koppelinge (soos jou huidige SSH-sessie) deur. Herstel outomaties na 60 sekondes, of kies die opsie weer om dadelik te herstel.
-* **Diens-crash toets** — maak `radio-orania.service` dood om die diens se `Restart=always`-outo-herstel te toets. Vra eers 'n Y/N-bevestiging, aangesien dit 'n regte, kort onderbreking van die uitsending veroorsaak.
-* **Heartbeat-toets nou** — stuur dadelik een oproep na `HEARTBEAT_URL` en wys of dit slaag/faal.
-* **Klankkaart-toets** — speel 'n kort toon direk na die ingestelde ALSA-toestel, los van die res van die Liquidsoap-pyplyn.
+* **Bron 1/2: Simuleer wegval** — stop/begin die stroom se Liquidsoap-inset; forseer regte failover, plaaslik en omkeerbaar
+* **Internet: Simuleer verlies** — blokkeer nuwe uitgaande verkeer (`iptables`), laat bestaande koppelinge deur; outo-herstel na 60s
+* **Diens-crash toets** — SIGKILL die diens om `Restart=always` te toets (Y/N-bevestiging, veroorsaak regte onderbreking)
+* **Heartbeat-toets** — een oproep na `HEARTBEAT_URL`, wys slaag/faal
+* **Klankkaart-toets** — kort toon na die ALSA-toestel
 
 ---
 
 ## Logs
 
-Installer:
-
-```text
-installer.log
-```
-
-Radio diens:
-
-```bash
-journalctl -u radio-orania -f
-```
-
-File Browser:
-
-```text
-/opt/radio-orania/filebrowser/filebrowser.log
-```
+* Installer: `installer.log`
+* Radio-diens: `journalctl -u radio-orania -f`
+* File Browser: `/opt/radio-orania/filebrowser/filebrowser.log`
 
 ---
 
 ## Verwydering
 
-Om die installasie te verwyder:
-
 ```bash
 sudo bash uninstall.sh
 ```
 
-Indien daar media in `/opt/radio-orania/media` is, bied die uninstaller eers aan om dit na 'n `.tar.gz` te rugsteun voor verwydering.
-
-Dit verwyder:
-
-* Radio Orania diens
-* File Browser diens
-* Heartbeat
-* Outo-restart timer
-* `radioctl` en die beheerpaneel-skerm (insluitend die `radio-admin` gebruiker)
-* Die `radio-orania` diens-gebruiker
-* Alle Radio Orania data
+Bied eers aan om media na `.tar.gz` te rugsteun. Verwyder Radio Orania-, File Browser- en heartbeat-dienste, outo-restart timer, `radioctl`/beheerpaneel-skerm, die `radio-admin`- en `radio-orania`-gebruikers, en alle data.
 
 ---
 
 ## Projek Status
 
-### V1.0
+### V1.0 — Voltooi
 
-Voltooi:
-
-* Installer
-* Liquidsoap integrasie
-* Outomatiese failover
-* Outomatiese herstel na stroom
-* File Browser
-* Heartbeat ondersteuning
-* Validation
-* Uninstaller
-* Toegewyde, onbevoorregte diens-gebruiker
-* `radioctl` beheerpaneel
-* Opsionele beheerpaneel-skerm (SSH + fisiese skerm)
-* ShellCheck CI
+Installer, Liquidsoap-integrasie, outomatiese failover/herstel, File Browser, heartbeat, validasie, uninstaller, onbevoorregte diens-gebruiker, `radioctl`, beheerpaneel-skerm, ShellCheck CI.
 
 ### Beplan vir V1.1
 
-* Verdere hardening
-* Service Watchdog
-* File Browser Wagwoord Reset
+Verdere hardening, service watchdog, File Browser wagwoord-reset.
 
 ---
