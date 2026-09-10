@@ -48,6 +48,18 @@ file.write(
 # Liquidsoap outomaties 'n bietjie oudio val om weer by te kom, i.p.v. dat
 # net 'n herbegin van die rekenaar dit regstel.
 
+# radio.is_ready() (op die buffer()/blank.strip() hieronder) bly
+# "gereed" lank nadat die netwerk werklik af is - dit reflekteer net of
+# die bron geïnisialiseer is, nie of dit tans gekoppel is nie. Getoets
+# en bevestig: tydens 'n volledige verbindingsverlies bly dit tot
+# 20-30s "gereed" voordat input.http() self 'n mislukking registreer,
+# en daardie mislukking bereik nie is_ready() deur die buffer()-laag
+# heen nie. radio_connected hou dus self tred, direk op input.http() se
+# eie on_connect/on_disconnect - dís waarop switch() hieronder staatmaak
+# om 'n regte ontkoppeling raak te sien, nie radio.is_ready() nie.
+
+radio_connected = ref(false)
+
 radio =
   buffer(
     max=stream_buffer_max,
@@ -55,6 +67,8 @@ radio =
       input.http(
         self_sync=false,
         id="radio_input",
+        on_connect=(fun (headers) -> radio_connected := true),
+        on_disconnect={radio_connected := false},
         radio_url
       )
     )
@@ -168,9 +182,9 @@ main =
   switch(
     track_sensitive=false,
     [
-      ({source_override() == "primer"}, radio),
+      ({source_override() == "primer" and radio_connected()}, radio),
       ({source_override() == "noodmusiek"}, backup_program),
-      ({source_override() == "" and primary_source == "1"}, radio),
+      ({source_override() == "" and primary_source == "1" and radio_connected()}, radio),
 # __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__
       ({true}, backup_program)
     ]
@@ -199,11 +213,11 @@ output.alsa(
 
 def check_active_source()
   active =
-    if source_override() == "primer" and radio.is_ready() then
+    if source_override() == "primer" and radio_connected() then
       "primer"
     elsif source_override() == "noodmusiek" then
       "noodmusiek"
-    elsif source_override() == "" and primary_source == "1" and radio.is_ready() then
+    elsif source_override() == "" and primary_source == "1" and radio_connected() then
       "primer"
 # __ACTIVE_SOURCE_BACKUP_BRANCH__
     else
