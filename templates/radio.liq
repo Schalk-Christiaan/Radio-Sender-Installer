@@ -73,7 +73,12 @@ radio =
 
 emergency_music_raw =
   playlist(
-    mode="random",
+    # "randomize" skommel die hele lys en speel dan daardeur sonder
+    # herhaling totdat elke lêer een keer gespeel het (dan skommel dit
+    # weer) - "random" (die vorige waarde) trek elke keer heeltemal
+    # onafhanklik, wat toegelaat het dat dieselfde liedjie/sweeper
+    # dadelik weer agtermekaar speel.
+    mode="randomize",
     reload=playlist_reload,
     reload_mode="seconds",
     prefetch=playlist_prefetch,
@@ -86,7 +91,7 @@ emergency_music = mksafe(emergency_music_raw)
 
 sweepers_raw =
   playlist(
-    mode="random",
+    mode="randomize",
     reload=playlist_reload,
     reload_mode="seconds",
     prefetch=playlist_prefetch,
