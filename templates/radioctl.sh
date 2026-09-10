@@ -269,6 +269,56 @@ cmd_sysstats() {
     fi
 }
 
+# --- BEHEER-oortjie: handmatige bron-wissel -----------------------------
+#
+# Skryf net 'n woord na radio.liq se source_override-lêer - Liquidsoap
+# lees dit self elke 2 sekondes (sien radio.liq), geen socat/socket nodig
+# nie. Die wissel is doelbewus TYDELIK: radio.liq stel dit terug na
+# "outomaties" by elke diens-begin (sien radio.liq se opmerking daaroor),
+# so 'n vergete wissel bly nie oor 'n herbegin/herlaai heen vassit nie.
+cmd_wissel() {
+    need_root "wissel <1|2|musiek|outomaties>"
+    load_config
+
+    local choice="$1" val label
+
+    case "$choice" in
+        1)
+            val="primer"
+            label="Bron 1"
+            ;;
+        2)
+            if [ -z "${BACKUP_STREAM_URL:-}" ]; then
+                echo "Geen rugsteun-stroom ingestel nie."
+                exit 1
+            fi
+            val="rugsteun"
+            label="Bron 2"
+            ;;
+        musiek)
+            val="noodmusiek"
+            label="Musiek"
+            ;;
+        outomaties|"")
+            val=""
+            label="Outomaties"
+            ;;
+        *)
+            echo "Gebruik: radioctl wissel <1|2|musiek|outomaties>"
+            exit 1
+            ;;
+    esac
+
+    local override_file="$BASE_DIR/liquidsoap/source_override"
+    local tmp
+    tmp=$(mktemp)
+    printf '%s' "$val" > "$tmp"
+    install -m 644 -o radio-orania -g audio "$tmp" "$override_file"
+    rm -f "$tmp"
+
+    echo "Bron gewissel na: $label"
+}
+
 # --- TOETS-oortjie: foutsimulasie vir die dashboard ---------------------
 #
 # Elke toets is doelbewus SELFSTANDIG omkeerbaar (of outomaties, of via 'n
@@ -447,7 +497,7 @@ cmd_test_soundcard() {
     fi
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX"
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX PRIMARY_SOURCE"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -467,6 +517,7 @@ with_installer_config() {
 
 cmd_set() {
     need_root "set <SLEUTEL> <WAARDE>"
+    load_config
 
     if [ "$#" -lt 2 ]; then
         echo "Gebruik: radioctl set <SLEUTEL> <WAARDE>"
@@ -509,6 +560,19 @@ cmd_set() {
                 exit 1
             }
             ;;
+        PRIMARY_SOURCE)
+            case "$value" in
+                1|2) ;;
+                *)
+                    echo "Moet 1 of 2 wees."
+                    exit 1
+                    ;;
+            esac
+            if [ "$value" = "2" ] && [ -z "${BACKUP_STREAM_URL:-}" ]; then
+                echo "Kan nie Bron 2 as primêr stel nie - geen rugsteun-stroom is ingestel nie."
+                exit 1
+            fi
+            ;;
         *)
             echo "Onbekende of nie-verstelbare instelling: $key"
             echo "Beskikbaar: $SETTABLE_KEYS"
@@ -527,16 +591,28 @@ cmd_set() {
     grep -v "^${key}=" "$CONFIG_FILE" > "$tmp"
     printf '%s=%q\n' "$key" "$value" >> "$tmp"
 
+    # 'n Primêre bron wat op Bron 2 staan, is betekenisloos sonder 'n
+    # rugsteun-stroom (en verwys na 'n backup_radio wat dan glad nie
+    # meer in radio.liq bestaan nie) - stel dit stil terug na 1 saam
+    # met hierdie wysiging, i.p.v. 'n dooie verwysing agter te laat.
+    local primary_reset_note=""
+    if [ "$key" = "BACKUP_STREAM_URL" ] && [ -z "$value" ] && [ "${PRIMARY_SOURCE:-1}" = "2" ]; then
+        grep -v '^PRIMARY_SOURCE=' "$tmp" > "${tmp}.2"
+        mv "${tmp}.2" "$tmp"
+        printf '%s=%q\n' "PRIMARY_SOURCE" "1" >> "$tmp"
+        primary_reset_note=" Primêre bron is ook teruggestel na 1."
+    fi
+
     install -m 600 -o radio-orania -g audio "$tmp" "$CONFIG_FILE"
     rm -f "$tmp"
 
     case "$key" in
-        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE|STREAM_BUFFER_MAX)
+        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE|STREAM_BUFFER_MAX|PRIMARY_SOURCE)
             if [ ! -x "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null; then
                 systemctl restart radio-orania.service
-                echo "$key opgedateer na '$value' en toegepas."
+                echo "$key opgedateer na '$value' en toegepas.$primary_reset_note"
             else
                 echo "$key gestoor, maar kon nie toegepas word nie - die nuwe waarde het Liquidsoap se kontrole gedruip."
                 exit 1
@@ -647,6 +723,7 @@ Gebruik: radioctl <opdrag>
   datausage      Wys data-verbruik vandag/hierdie maand (vnstat)
   sysstats       Wys CPU-las, geheue, skyfspasie en CPU-temperatuur
   set <S> <W>    Verander 'n instelling ($SETTABLE_KEYS)
+  wissel <T>     Wissel bron: 1, 2, musiek, of outomaties (tydelik)
   passwords      Wys al die gestoorde wagwoorde
   reconfigure    Loop die opstelling-assistent weer
   update         Trek die jongste weergawe en herinstalleer
@@ -680,6 +757,7 @@ case "${1:-}" in
     datausage)    cmd_datausage ;;
     sysstats)     cmd_sysstats ;;
     set)          shift; cmd_set "$@" ;;
+    wissel)       shift; cmd_wissel "${1:-}" ;;
     passwords)    cmd_passwords ;;
     reconfigure)  cmd_reconfigure ;;
     update)       cmd_update ;;

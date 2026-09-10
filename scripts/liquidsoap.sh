@@ -41,6 +41,12 @@ fi
 
 sed -i "/^# __ACTIVE_SOURCE_BACKUP_BRANCH__$/d" "$TARGET_FILE"
 
+if [ -n "$BACKUP_STREAM_URL" ]; then
+    sed -i "/^# __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__$/r $SCRIPT_DIR/../templates/radio-switch-backup-branches.liq" "$TARGET_FILE"
+fi
+
+sed -i "/^# __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__$/d" "$TARGET_FILE"
+
 progress 50 "Vul konfigurasie in"
 
 sed -i "s|__STREAM_URL__|$(escape_sed_replacement "$STREAM_URL")|g" "$TARGET_FILE"
@@ -56,6 +62,8 @@ sed -i "s|__PLAYLIST_RELOAD__|$PLAYLIST_RELOAD|g" "$TARGET_FILE"
 sed -i "s|__PLAYLIST_PREFETCH__|$PLAYLIST_PREFETCH|g" "$TARGET_FILE"
 
 sed -i "s|__STREAM_BUFFER_MAX__|${STREAM_BUFFER_MAX:-10}.0|g" "$TARGET_FILE"
+
+sed -i "s|__PRIMARY_SOURCE__|${PRIMARY_SOURCE:-1}|g" "$TARGET_FILE"
 
 if [ "$INSTALL_DASHBOARD" = "yes" ]; then
     sed -i "s|__ICECAST_PORT__|$ICECAST_PORT|g" "$TARGET_FILE"

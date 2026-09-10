@@ -400,6 +400,15 @@ handle_beheer_item() {
         4)
             toggle_listen
             ;;
+        5)
+            local val
+            inline_prompt "Wissel na (1/2/M=Musiek/A=Outomaties): " val
+            case "$val" in
+                [Mm]*) val="musiek" ;;
+                [Aa]*|"") val="outomaties" ;;
+            esac
+            STATUS_MSG=$(sudo radioctl wissel "$val" 2>&1)
+            ;;
         "")
             STATUS_MSG=""
             ;;
@@ -475,6 +484,10 @@ handle_instellings_item() {
         7)
             inline_prompt "Maksimum stroom-buffer in sekondes: " val
             STATUS_MSG=$(sudo radioctl set STREAM_BUFFER_MAX "$val" 2>&1)
+            ;;
+        8)
+            inline_prompt "Primêre bron (1 of 2): " val
+            STATUS_MSG=$(sudo radioctl set PRIMARY_SOURCE "$val" 2>&1)
             ;;
         "")
             STATUS_MSG=""
@@ -902,7 +915,7 @@ draw_beheer_tab() {
 
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
     local items=(
-        "1) Begin" "2) Stop" "3) Herbegin" "$listen_item"
+        "1) Begin" "2) Stop" "3) Herbegin" "$listen_item" "5) Wissel bron"
     )
     print_command_grid items items "$sep_width"
 }
@@ -920,7 +933,7 @@ draw_instellings_tab() {
         "1) Stroom URL (primêr)" "2) Rugsteun-stroom URL"
         "3) Musiek/sweeper-verhouding" "4) Stasienaam"
         "5) ALSA-klanktoestel" "6) Heartbeat URL"
-        "7) Maksimum stroom-buffer"
+        "7) Maksimum stroom-buffer" "8) Primêre bron"
     )
     print_command_grid items items "$sep_width"
 }
