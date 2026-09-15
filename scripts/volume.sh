@@ -19,17 +19,22 @@ fi
 
 progress 50 "Stel volume"
 
-# Nie elke kaart het 'n "Master"-mengertjie nie - val terug na "PCM" as
-# dit ontbreek, i.p.v. met 'n fout te breek en die res van 'n
-# installasie/"radioctl set" te laat misluk.
+# AUDIO_PORT laat die admin 'n spesifieke fisiese uitsetpoort kies (bv.
+# "Line" i.p.v. "Front") - radioctl se "set AUDIO_PORT" valideer reeds
+# dat die naam werklik op die kaart bestaan. Sonder AUDIO_PORT val ons
+# terug op "Master", en daarna "PCM" - nie elke kaart het 'n
+# "Master"-mengertjie nie, en dit moenie die res van 'n installasie/
+# "radioctl set" laat misluk nie.
 if command -v amixer >/dev/null 2>&1; then
 
-    if amixer -c "$CARD" sget Master >/dev/null 2>&1; then
+    if [ -n "${AUDIO_PORT:-}" ] && amixer -c "$CARD" sget "$AUDIO_PORT" >/dev/null 2>&1; then
+        amixer -c "$CARD" sset "$AUDIO_PORT" "${VOLUME:-100}%" unmute >/dev/null
+    elif amixer -c "$CARD" sget Master >/dev/null 2>&1; then
         amixer -c "$CARD" sset Master "${VOLUME:-100}%" unmute >/dev/null
     elif amixer -c "$CARD" sget PCM >/dev/null 2>&1; then
         amixer -c "$CARD" sset PCM "${VOLUME:-100}%" unmute >/dev/null
     else
-        echo "Waarskuwing: geen 'Master'- of 'PCM'-mengertjie op kaart $CARD gevind nie; volume nie gestel nie."
+        echo "Waarskuwing: geen bruikbare mengertjie op kaart $CARD gevind nie; volume nie gestel nie."
     fi
 
 else

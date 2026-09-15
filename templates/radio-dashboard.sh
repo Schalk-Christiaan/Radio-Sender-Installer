@@ -378,7 +378,7 @@ inline_pause() {
     printf '%s' "$HIDE_CURSOR"
 }
 
-# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Monitor -----------
+# --- BEHEER-oortjie: 1) Begin 2) Stop 3) Herbegin 4) Aux-poort ---------
 # Suiwer lewendige-uitsending-beheer - alles wat net INLIGTING wys (Media)
 # of die stelsel/paneel onderhou (Rugsteun, Kleurskema, ens.) leef elders.
 handle_beheer_item() {
@@ -398,7 +398,19 @@ handle_beheer_item() {
             [ -z "$STATUS_MSG" ] && STATUS_MSG="Radio herbegin."
             ;;
         4)
-            toggle_listen
+            local port vol r1="" r2=""
+            printf '%s' "$SHOW_CURSOR"
+            echo
+            sudo radioctl audio-ports 2>/dev/null
+            echo
+            printf 'Aux-poort (naam hierbo, leeg om te behou): '
+            read -r port
+            printf 'Volume 0-100 (leeg om te behou): '
+            read -r vol
+            printf '%s' "$HIDE_CURSOR"
+            [ -n "$port" ] && r1=$(sudo radioctl set AUDIO_PORT "$port" 2>&1)
+            [ -n "$vol" ] && r2=$(sudo radioctl set VOLUME "$vol" 2>&1)
+            STATUS_MSG="${r1}${r1:+ / }${r2}"
             ;;
         5)
             local val
@@ -910,16 +922,9 @@ compute_tab_bar() {
 }
 
 draw_beheer_tab() {
-    local listen_item
-    if [ "$PLAYING" = true ]; then
-        listen_item="4) Monitor Af"
-    else
-        listen_item="4) Monitor Aan"
-    fi
-
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
     local items=(
-        "1) Begin" "2) Stop" "3) Herbegin" "$listen_item" "5) Wissel bron"
+        "1) Begin" "2) Stop" "3) Herbegin" "4) Aux-poort" "5) Wissel bron"
     )
     print_command_grid items items "$sep_width"
 }

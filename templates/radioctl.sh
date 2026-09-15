@@ -60,14 +60,18 @@ cmd_status() {
 
     local volume_str="onbekend"
     if command -v amixer >/dev/null 2>&1; then
-        local card=0 raw
-        if [[ "${ALSA_DEVICE:-default}" =~ ^(plug)?hw:([0-9]+) ]]; then
-            card="${BASH_REMATCH[2]}"
+        local card sget_out raw
+        card=$(alsa_card_for_device "${ALSA_DEVICE:-default}")
+
+        if [ -n "${AUDIO_PORT:-}" ]; then
+            sget_out=$(amixer -c "$card" sget "$AUDIO_PORT" 2>/dev/null)
         fi
-        raw=$( { amixer -c "$card" sget Master 2>/dev/null || amixer -c "$card" sget PCM 2>/dev/null; } \
-            | sed -n 's/.*\[\([0-9]\+\)%\].*/\1/p' | head -1)
+        [ -z "${sget_out:-}" ] && sget_out=$(amixer -c "$card" sget Master 2>/dev/null)
+        [ -z "${sget_out:-}" ] && sget_out=$(amixer -c "$card" sget PCM 2>/dev/null)
+
+        raw=$(echo "${sget_out:-}" | sed -n 's/.*\[\([0-9]\+\)%\].*/\1/p' | head -1)
         if [ -n "$raw" ]; then
-            volume_str="${raw}%"
+            volume_str="${raw}%${AUDIO_PORT:+ ($AUDIO_PORT)}"
         fi
     fi
     echo "${bold}Volume${reset}        : ${volume_str}"
@@ -511,7 +515,100 @@ cmd_test_soundcard() {
     fi
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX PRIMARY_SOURCE"
+alsa_card_for_device() {
+    local device="${1:-default}"
+    local card=0
+    if [[ "$device" =~ ^(plug)?hw:([0-9]+) ]]; then
+        card="${BASH_REMATCH[2]}"
+    fi
+    echo "$card"
+}
+
+cmd_audio_ports() {
+    load_config
+
+    if ! command -v amixer >/dev/null 2>&1; then
+        echo "amixer nie geïnstalleer nie."
+        exit 1
+    fi
+
+    local card
+    card=$(alsa_card_for_device "${ALSA_DEVICE:-default}")
+
+    # "numid=NN,iface=CARD,name='Front Headphone Jack'" - numid word gebruik
+    # (nie die naam nie) om cget te bevraagteken, want name= se aanhalings
+    # kan op sommige kodeks se kontrole-name breek.
+    local jacks
+    jacks=$(amixer -c "$card" controls 2>/dev/null | grep "iface=CARD")
+
+    local name caps jack_state jack_line jack_numid found=""
+    while IFS= read -r name; do
+
+        [ -z "$name" ] && continue
+
+        # "pvolume" alleen is nie genoeg om ingang-toestelle (mikrofone,
+        # hul "Boost"-verstelling) uit te sluit nie - party kodeks wys hul
+        # mikrofoon-kontroles ook met 'n pvolume-vermoë (sytoon-monitor).
+        case "$name" in
+            *Mic*|*Boost*|*Capture*|*Input*) continue ;;
+        esac
+
+        caps=$(amixer -c "$card" sget "$name" 2>/dev/null | grep "Capabilities:")
+
+        case "$caps" in
+            *pvolume*) ;;
+            *) continue ;;
+        esac
+
+        # Twee deurgange: soek eers spesifiek vir "...Out Jack" (bv. "Line
+        # Out Jack") voor die algemener "$name Jack" - "Line" het BÉIDE 'n
+        # "Line Jack" (lyn-INGANG se bespeuring) en 'n "Line Out Jack"
+        # (die werklike uitset-poort se bespeuring), en sonder hierdie
+        # volgorde sou die verkeerde een (ingang) gekies word.
+        jack_state="onbekend"
+        found=""
+
+        while IFS= read -r jack_line; do
+            case "$jack_line" in
+                *"name='"*"$name"*"Out Jack'")
+                    found="$jack_line"
+                    break
+                    ;;
+            esac
+        done <<< "$jacks"
+
+        if [ -z "$found" ]; then
+            while IFS= read -r jack_line; do
+                case "$jack_line" in
+                    *"name='"*"$name Jack'")
+                        found="$jack_line"
+                        break
+                        ;;
+                esac
+            done <<< "$jacks"
+        fi
+
+        if [ -n "$found" ]; then
+            jack_numid=$(echo "$found" | sed -n "s/numid=\([0-9]\+\),.*/\1/p")
+            if amixer -c "$card" cget "numid=$jack_numid" 2>/dev/null | grep -q "values=on"; then
+                jack_state="kabel ingeprop"
+            else
+                jack_state="geen kabel nie"
+            fi
+        fi
+
+        local level
+        level=$(amixer -c "$card" sget "$name" 2>/dev/null | sed -n 's/.*\[\([0-9]\+\)%\].*/\1/p' | head -1)
+
+        local muted="ontdemp"
+        amixer -c "$card" sget "$name" 2>/dev/null | grep -q '\[off\]' && muted="gedemp"
+
+        printf '%-20s volume=%-5s demp=%-9s jack=%s\n' "$name" "${level:-?}%" "$muted" "$jack_state"
+
+    done < <(amixer -c "$card" scontrols 2>/dev/null | sed -n "s/.*'\(.*\)',.*/\1/p")
+}
+
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX PRIMARY_SOURCE"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -571,6 +668,14 @@ cmd_set() {
         VOLUME)
             if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -gt 100 ]; then
                 echo "Volume moet 'n heelgetal tussen 0 en 100 wees."
+                exit 1
+            fi
+            ;;
+        AUDIO_PORT)
+            local card
+            card=$(alsa_card_for_device "${ALSA_DEVICE:-default}")
+            if ! amixer -c "$card" sget "$value" >/dev/null 2>&1; then
+                echo "Onbekende uitsetpoort '$value'. Loop 'radioctl audio-ports' vir 'n lys."
                 exit 1
             fi
             ;;
@@ -638,11 +743,11 @@ cmd_set() {
                 exit 1
             fi
             ;;
-        VOLUME)
+        VOLUME|AUDIO_PORT)
             if [ ! -f "$INSTALLER_DIR/scripts/volume.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/volume.sh" >/dev/null; then
-                echo "$key opgedateer na '$value%' en toegepas."
+                echo "$key opgedateer na '$value' en toegepas."
             else
                 echo "$key gestoor, maar kon nie toegepas word nie."
                 exit 1
@@ -750,6 +855,7 @@ Gebruik: radioctl <opdrag>
   monitor-url    Wys die netwerk-URL om die op-lug mengsel te monitor
   backup         Skep 'n rugsteun van die mediavouer
   bufferstat     Wys die regstreekse netwerk-buffer van die aktiewe bron
+  audio-ports    Wys elke aux-uitsetpoort met volume, demp en jack-status
   datausage      Wys data-verbruik vandag/hierdie maand (vnstat)
   sysstats       Wys CPU-las, geheue, skyfspasie en CPU-temperatuur
   set <S> <W>    Verander 'n instelling ($SETTABLE_KEYS)
@@ -784,6 +890,7 @@ case "${1:-}" in
     monitor-url)  cmd_monitor_url ;;
     backup)       cmd_backup ;;
     bufferstat)   cmd_bufferstat ;;
+    audio-ports)  cmd_audio_ports ;;
     datausage)    cmd_datausage ;;
     sysstats)     cmd_sysstats ;;
     set)          shift; cmd_set "$@" ;;
