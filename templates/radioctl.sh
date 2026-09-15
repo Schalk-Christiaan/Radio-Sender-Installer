@@ -58,6 +58,20 @@ cmd_status() {
     echo "${bold}Sender Naam${reset}   : ${STATION_NAME:-onbekend}"
     echo "${bold}Stroom URL${reset}    : ${STREAM_URL:-onbekend}"
 
+    local volume_str="onbekend"
+    if command -v amixer >/dev/null 2>&1; then
+        local card=0 raw
+        if [[ "${ALSA_DEVICE:-default}" =~ ^(plug)?hw:([0-9]+) ]]; then
+            card="${BASH_REMATCH[2]}"
+        fi
+        raw=$( { amixer -c "$card" sget Master 2>/dev/null || amixer -c "$card" sget PCM 2>/dev/null; } \
+            | sed -n 's/.*\[\([0-9]\+\)%\].*/\1/p' | head -1)
+        if [ -n "$raw" ]; then
+            volume_str="${raw}%"
+        fi
+    fi
+    echo "${bold}Volume${reset}        : ${volume_str}"
+
     local active_label="onbekend" active_url=""
     if [ -f "$BASE_DIR/liquidsoap/active_source" ]; then
         case "$(cat "$BASE_DIR/liquidsoap/active_source" 2>/dev/null)" in
@@ -497,7 +511,7 @@ cmd_test_soundcard() {
     fi
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX PRIMARY_SOURCE"
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX PRIMARY_SOURCE"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -553,6 +567,12 @@ cmd_set() {
                 echo "Ongeldige ALSA-toestel."
                 exit 1
             }
+            ;;
+        VOLUME)
+            if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -gt 100 ]; then
+                echo "Volume moet 'n heelgetal tussen 0 en 100 wees."
+                exit 1
+            fi
             ;;
         STATION_NAME)
             is_valid_plain_text "$value" || {
@@ -615,6 +635,16 @@ cmd_set() {
                 echo "$key opgedateer na '$value' en toegepas.$primary_reset_note"
             else
                 echo "$key gestoor, maar kon nie toegepas word nie - die nuwe waarde het Liquidsoap se kontrole gedruip."
+                exit 1
+            fi
+            ;;
+        VOLUME)
+            if [ ! -f "$INSTALLER_DIR/scripts/volume.sh" ]; then
+                echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
+            elif with_installer_config bash "$INSTALLER_DIR/scripts/volume.sh" >/dev/null; then
+                echo "$key opgedateer na '$value%' en toegepas."
+            else
+                echo "$key gestoor, maar kon nie toegepas word nie."
                 exit 1
             fi
             ;;

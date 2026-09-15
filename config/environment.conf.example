@@ -4,6 +4,7 @@ STREAM_URL="https://stream.radio.co/s7adaa782c/listen"
 BACKUP_STREAM_URL=""
 
 ALSA_DEVICE="default"
+VOLUME="100"
 
 MUSIC_WEIGHT="4"
 SWEEPER_WEIGHT="1"

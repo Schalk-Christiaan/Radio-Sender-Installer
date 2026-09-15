@@ -147,6 +147,27 @@ else
     warn "aplay nie beskikbaar nie"
 fi
 
+if command -v amixer >/dev/null 2>&1; then
+
+    CARD=0
+    if [[ "$ALSA_DEVICE" =~ ^(plug)?hw:([0-9]+) ]]; then
+        CARD="${BASH_REMATCH[2]}"
+    fi
+
+    MIXER_LINE=$(amixer -c "$CARD" sget Master 2>/dev/null || amixer -c "$CARD" sget PCM 2>/dev/null || true)
+
+    if [ -n "$MIXER_LINE" ]; then
+        if echo "$MIXER_LINE" | grep -q '\[off\]'; then
+            warn "Mengertjie is gedemp - geen klank sal by die uitset uitkom nie"
+        elif echo "$MIXER_LINE" | grep -q '\[0%\]'; then
+            warn "Mengertjie volume staan op 0%"
+        else
+            ok "Mengertjie is ontdemp en het volume"
+        fi
+    fi
+
+fi
+
 #
 # Service
 #

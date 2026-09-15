@@ -142,6 +142,8 @@ run_step "Stel monitor-aftakking op" "$SCRIPT_DIR/scripts/icecast.sh"
 
 run_step "Konfigureer Liquidsoap" "$SCRIPT_DIR/scripts/liquidsoap.sh"
 
+run_step "Stel volume" "$SCRIPT_DIR/scripts/volume.sh"
+
 if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
     run_step "Installeer File Browser" "$SCRIPT_DIR/scripts/filebrowser.sh"
 fi
