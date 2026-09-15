@@ -57,6 +57,9 @@ if [ -d "$BASE_DIR/media" ] && find "$BASE_DIR/media" -type f 2>/dev/null | grep
 fi
 
 echo
+read -rp "Verwyder ook musiek en sweepers in $BASE_DIR/media? (Y/N) [N]: " WIPE_MEDIA
+
+echo
 echo ">>> Stop dienste"
 
 systemctl stop radio-orania.service 2>/dev/null || true
@@ -126,7 +129,12 @@ fi
 echo
 echo ">>> Verwyder data"
 
-rm -rf "$BASE_DIR"
+if [[ "$WIPE_MEDIA" =~ ^[Yy]$ ]]; then
+    rm -rf "$BASE_DIR"
+else
+    find "$BASE_DIR" -mindepth 1 -maxdepth 1 ! -name media -exec rm -rf {} +
+    echo "Musiek en sweepers behou in $BASE_DIR/media"
+fi
 
 echo
 echo ">>> Verwyder diens-gebruiker"
