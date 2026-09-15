@@ -154,6 +154,14 @@ echo
 echo "Beskikbare ALSA toestelle:"
 echo
 
+# aplay (alsa-utils) is eers 'n stap later, by scripts/dependencies.sh,
+# geïnstalleer - sonder hierdie kontrole sou 'n vars installasie nooit
+# werklike kaarte oplys nie en altyd net by "default" vassteek.
+if ! command -v aplay >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y alsa-utils -qq
+fi
+
 DEVICES=("default")
 
 if command -v aplay >/dev/null 2>&1; then

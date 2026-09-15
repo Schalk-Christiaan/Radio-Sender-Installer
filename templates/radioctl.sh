@@ -608,7 +608,7 @@ cmd_set() {
 
     case "$key" in
         STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE|STREAM_BUFFER_MAX|PRIMARY_SOURCE)
-            if [ ! -x "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
+            if [ ! -f "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null; then
                 systemctl restart radio-orania.service
@@ -619,7 +619,7 @@ cmd_set() {
             fi
             ;;
         STATION_NAME)
-            if [ ! -x "$INSTALLER_DIR/scripts/service.sh" ]; then
+            if [ ! -f "$INSTALLER_DIR/scripts/service.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/service.sh" >/dev/null; then
                 echo "$key opgedateer na '$value' en toegepas."
@@ -629,7 +629,7 @@ cmd_set() {
             fi
             ;;
         HEARTBEAT_URL)
-            if [ ! -x "$INSTALLER_DIR/scripts/monitoring.sh" ]; then
+            if [ ! -f "$INSTALLER_DIR/scripts/monitoring.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/monitoring.sh" >/dev/null; then
                 echo "$key opgedateer na '$value' en toegepas."
@@ -670,7 +670,7 @@ cmd_passwords() {
 cmd_uninstall() {
     need_root "uninstall"
 
-    if [ ! -x "$INSTALLER_DIR/uninstall.sh" ]; then
+    if [ ! -f "$INSTALLER_DIR/uninstall.sh" ]; then
         echo "Uninstaller nie gevind by $INSTALLER_DIR nie."
         exit 1
     fi
@@ -681,7 +681,7 @@ cmd_uninstall() {
 cmd_reconfigure() {
     need_root "reconfigure"
 
-    if [ ! -x "$INSTALLER_DIR/install.sh" ]; then
+    if [ ! -f "$INSTALLER_DIR/install.sh" ]; then
         echo "Installer nie gevind by $INSTALLER_DIR nie."
         echo "Klone die repo weer en loop: sudo bash install.sh"
         exit 1
