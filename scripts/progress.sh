@@ -40,3 +40,19 @@ progress() {
         fi
     } 2>/dev/null > /dev/tty || true
 }
+
+# 'n Waarskuwing wat, soos progress() hierbo, altyd die skerm moet bereik -
+# nie net installer.log nie. install.sh se verstek (nie-verbose) run_step
+# herlei elke stap se hele stdout/stderr na die log toe (>>"$LOG_FILE" 2>&1),
+# so 'n gewone "echo" hier sou 'n operateur wat nie --verbose gebruik nie
+# nooit bereik nie.
+warn() {
+
+    local message="$1"
+
+    echo "Waarskuwing: $message"
+
+    {
+        echo "Waarskuwing: $message"
+    } 2>/dev/null > /dev/tty || true
+}

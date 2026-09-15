@@ -38,6 +38,7 @@ if [ ! -d "$INSTALLER_DIR/.git" ] && command -v git >/dev/null 2>&1; then
     git -C "$INSTALLER_DIR" remote add origin "https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git"
 
     FETCH_ERR=$(mktemp)
+    trap 'rm -f "$FETCH_ERR"' EXIT
 
     if git -C "$INSTALLER_DIR" fetch origin main >"$FETCH_ERR" 2>&1; then
 
@@ -46,12 +47,17 @@ if [ ! -d "$INSTALLER_DIR/.git" ] && command -v git >/dev/null 2>&1; then
         # is - anders sou die reset hieronder die volgehoue kopie
         # stilweg na 'n ander weergawe verander as wat sopas geïnstalleer
         # is, sonder dat die operateur dit ooit sien.
-        git -C "$INSTALLER_DIR" add -A
-        LOCAL_TREE=$(git -C "$INSTALLER_DIR" write-tree)
-        REMOTE_TREE=$(git -C "$INSTALLER_DIR" rev-parse origin/main^{tree})
-
-        if [ "$LOCAL_TREE" != "$REMOTE_TREE" ]; then
-            echo "Waarskuwing: origin/main het intussen verander sedert die aflaai - die volgehoue kopie by $INSTALLER_DIR (vir 'radioctl update'/'reconfigure') word na daardie jongste weergawe opgedateer, nie noodwendig presies wat sopas geïnstalleer is nie."
+        #
+        # "add -N" (intent-to-add) merk die ongespoorde lêers vir diff
+        # sonder om enige blob te skryf, en "diff --quiet" self skryf
+        # niks nie - lees-alleen, i.p.v. add -A/write-tree wat die hele
+        # boom (weer) as voorwerpe stoor net om 'n ja/nee-vraag te
+        # beantwoord. Albei staan in 'n if-voorwaarde, so 'n mislukking
+        # (bv. skyf vol) laat "set -e" nie die hele installasie faal
+        # oor hierdie suiwer inligtingskontrole nie.
+        if git -C "$INSTALLER_DIR" add -N -A 2>/dev/null &&
+           ! git -C "$INSTALLER_DIR" diff --quiet origin/main -- . 2>/dev/null; then
+            warn "origin/main het intussen verander sedert die aflaai - die volgehoue kopie by $INSTALLER_DIR (vir 'radioctl update'/'reconfigure') word na daardie jongste weergawe opgedateer, nie noodwendig presies wat sopas geïnstalleer is nie."
         fi
 
         # Die vouer bevat reeds die tarball se lêers (ongespoor) - koppel
@@ -66,13 +72,16 @@ if [ ! -d "$INSTALLER_DIR/.git" ] && command -v git >/dev/null 2>&1; then
         git -C "$INSTALLER_DIR" branch -q --set-upstream-to=origin/main main
 
     else
-        echo "Waarskuwing: kon nie git-geskiedenis by $INSTALLER_DIR opstel nie:"
-        sed 's/^/  /' "$FETCH_ERR"
-        echo "Die huidige installasie is nie geraak nie, maar 'radioctl update' sal nie outomaties werk nie totdat die repo handmatig weer afgelaai word (sien README)."
+        warn "kon nie git-geskiedenis by $INSTALLER_DIR opstel nie:"
+        FETCH_ERR_INDENTED=$(sed 's/^/  /' "$FETCH_ERR")
+        echo "$FETCH_ERR_INDENTED"
+        { echo "$FETCH_ERR_INDENTED"; } 2>/dev/null > /dev/tty || true
+        warn "Die huidige installasie is nie geraak nie, maar 'radioctl update' sal nie outomaties werk nie totdat die repo handmatig weer afgelaai word (sien README)."
         rm -rf "$INSTALLER_DIR/.git"
     fi
 
     rm -f "$FETCH_ERR"
+    trap - EXIT
 
 fi
 
