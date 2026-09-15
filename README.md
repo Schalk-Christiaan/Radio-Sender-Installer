@@ -68,6 +68,14 @@ cd Radio-Sender-Installer
 sudo bash install.sh
 ```
 
+Hierdie repo is publiek, so `git clone` behoort nooit vir aanmelding te vra nie. As 'n
+GitHub-aanmeldvenster tog oopspring (tipies Git Credential Manager op Windows), klik
+"Cancel"/"Skip" — die clone gaan steeds anoniem voort. Of vermy die prompt heeltemal:
+
+```bash
+git -c credential.helper= clone https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git
+```
+
 Verbose modus (volledige uitset per stap; `installer.log` kry dit in elk geval altyd):
 
 ```bash
