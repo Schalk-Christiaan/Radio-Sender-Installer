@@ -152,7 +152,7 @@ STATUS (aktiewe bron, aanlyn-tyd, dienste, skyfspasie) bly altyd sigbaar. Daaron
 
 ### Volskerm op die fisiese skerm
 
-Die installer stel outomaties 'n kleiner konsole-lettertipe (Terminus 12x6) op tty1 sodat meer inhoud pas. Indien die skerm nog nie die volle breedte gebruik nie, stel die resolusie via GRUB:
+As die konsole (tty1) nie die skerm se volle breedte/hoogte gebruik nie (bv. 'n groot leë area, of stukkende/gestippelde teks), loop die konsole waarskynlik nie op die skerm se native resolusie nie. Stel dit via GRUB:
 
 ```bash
 sudo nano /etc/default/grub
@@ -161,11 +161,11 @@ sudo update-grub
 sudo reboot
 ```
 
-Lettertipe self verstel: `sudo dpkg-reconfigure console-setup`.
+Lettertipe verstel (opsioneel, kleiner lettertipe = meer inhoud pas): `sudo dpkg-reconfigure console-setup`.
 
-### Monitor
+### Aux-poort
 
-BEHEER se "Monitor Aan" speel plaaslik (via `mpv`) presies wat op-lug gaan, met 'n regstreekse klankvlak-balk. Weer kies ("Monitor Af") om te stop — apart van "Stop", wat die werklike uitsending stop. (`radioctl monitor-url` gee die netwerk-URL vir elders, bv. 'n blaaiser.)
+BEHEER se "Aux-poort" wys elke fisiese klankuitsetpoort op die kaart (volume, demp-status, en - waar die hardeware dit ondersteun - of 'n kabel werklik ingeprop is), en laat jou een kies om te verstel. Let wel: nie elke gelyste poort dra werklik die radio se klank nie - in 2-kanaal-modus (die verstek) dra tipies net die hoofpoort ("Front") en die globale "Master"/"PCM"-vlakke enigiets; ander poorte (Surround/Center/LFE/Headphone) kan stil bly ongeag hul volume. `radioctl audio-ports` wys dieselfde lys op die opdraglyn. (`radioctl monitor-url` gee steeds die netwerk-URL om op-lug elders te monitor, bv. 'n blaaiser.)
 
 ### Oortjies
 

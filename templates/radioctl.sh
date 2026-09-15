@@ -535,6 +535,13 @@ cmd_audio_ports() {
     local card
     card=$(alsa_card_for_device "${ALSA_DEVICE:-default}")
 
+    local channel_mode
+    channel_mode=$(amixer -c "$card" sget "Channel Mode" 2>/dev/null | sed -n "s/.*Item0: '\(.*\)'.*/\1/p")
+    if [ "${channel_mode:-2ch}" = "2ch" ]; then
+        echo "(2-kanaal-modus: net 'Front', 'Master' en 'PCM' dra gewoonlik werklik klank - '*' hieronder merk poorte wat waarskynlik stil bly.)"
+        echo
+    fi
+
     # "numid=NN,iface=CARD,name='Front Headphone Jack'" - numid word gebruik
     # (nie die naam nie) om cget te bevraagteken, want name= se aanhalings
     # kan op sommige kodeks se kontrole-name breek.
@@ -603,7 +610,14 @@ cmd_audio_ports() {
         local muted="ontdemp"
         amixer -c "$card" sget "$name" 2>/dev/null | grep -q '\[off\]' && muted="gedemp"
 
-        printf '%-20s volume=%-5s demp=%-9s jack=%s\n' "$name" "${level:-?}%" "$muted" "$jack_state"
+        local flag=" "
+        if [ "${channel_mode:-2ch}" = "2ch" ]; then
+            case "$name" in
+                Headphone|Surround|Center|LFE) flag="*" ;;
+            esac
+        fi
+
+        printf '%s%-20s volume=%-5s demp=%-9s jack=%s\n' "$flag" "$name" "${level:-?}%" "$muted" "$jack_state"
 
     done < <(amixer -c "$card" scontrols 2>/dev/null | sed -n "s/.*'\(.*\)',.*/\1/p")
 }
@@ -672,11 +686,18 @@ cmd_set() {
             fi
             ;;
         AUDIO_PORT)
-            local card
-            card=$(alsa_card_for_device "${ALSA_DEVICE:-default}")
-            if ! amixer -c "$card" sget "$value" >/dev/null 2>&1; then
-                echo "Onbekende uitsetpoort '$value'. Loop 'radioctl audio-ports' vir 'n lys."
-                exit 1
+            if [ -n "$value" ]; then
+                local card
+                card=$(alsa_card_for_device "${ALSA_DEVICE:-default}")
+                if ! amixer -c "$card" sget "$value" >/dev/null 2>&1; then
+                    echo "Onbekende uitsetpoort '$value'. Loop 'radioctl audio-ports' vir 'n lys."
+                    exit 1
+                fi
+                case "$value" in
+                    Headphone|Surround|Center|LFE)
+                        echo "Waarskuwing: '$value' dra gewoonlik nie die radio se klank in 2-kanaal-modus nie - moontlik hoor jy niks al verander die volume."
+                        ;;
+                esac
             fi
             ;;
         STATION_NAME)

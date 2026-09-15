@@ -162,7 +162,6 @@ run_step "Installeer radioctl" "$SCRIPT_DIR/scripts/controlpanel.sh"
 
 if [ "$INSTALL_DASHBOARD" = "yes" ]; then
     run_step "Installeer beheerpaneel-skerm" "$SCRIPT_DIR/scripts/dashboard.sh"
-    run_step "Stel konsole-lettertipe in" "$SCRIPT_DIR/scripts/console.sh"
     run_step "Stel data-verbruik-monitering op" "$SCRIPT_DIR/scripts/vnstat.sh"
 fi
 
