@@ -63,18 +63,14 @@ Netwerkstroom en klankkaart loop nie op dieselfde klok nie — 'n klein verskil 
 ## Installasie
 
 ```bash
-git clone https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git
-cd Radio-Sender-Installer
+curl -L https://github.com/Schalk-Christiaan/Radio-Sender-Installer/archive/refs/heads/main.tar.gz | tar xz
+cd Radio-Sender-Installer-main
 sudo bash install.sh
 ```
 
-Hierdie repo is publiek, so `git clone` behoort nooit vir aanmelding te vra nie. As 'n
-GitHub-aanmeldvenster tog oopspring (tipies Git Credential Manager op Windows), klik
-"Cancel"/"Skip" — die clone gaan steeds anoniem voort. Of vermy die prompt heeltemal:
-
-```bash
-git -c credential.helper= clone https://github.com/Schalk-Christiaan/Radio-Sender-Installer.git
-```
+'n Gewone HTTP-aflaai - geen `git`, SSH-sleutel of GitHub-aanmelding ooit nodig nie.
+Die installer stel self, agter die skerms, 'n git-koppeling op sodat `radioctl update`
+later outomaties kan opdateer.
 
 Verbose modus (volledige uitset per stap; `installer.log` kry dit in elk geval altyd):
 

@@ -837,7 +837,7 @@ cmd_update() {
 
     if [ ! -d "$INSTALLER_DIR/.git" ]; then
         echo "Geen git-geskiedenis by $INSTALLER_DIR nie; kan nie outomaties opdateer nie."
-        echo "Klone die repo handmatig weer om op te dateer."
+        echo "Laai die repo handmatig weer af (sien README) en loop install.sh weer."
         exit 1
     fi
 
