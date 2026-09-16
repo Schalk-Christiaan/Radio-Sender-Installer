@@ -100,7 +100,7 @@ systemctl stop radio-network-watchdog.service 2>/dev/null || true
 systemctl disable radio-network-watchdog.service 2>/dev/null || true
 
 rm -f /etc/systemd/system/radio-network-watchdog.service
-rm -f /etc/NetworkManager/conf.d/10-gsm-only.conf
+rm -f /etc/NetworkManager/conf.d/10-ignore-wired.conf
 
 echo
 echo ">>> Verwyder File Browser"

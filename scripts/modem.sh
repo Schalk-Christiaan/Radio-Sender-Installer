@@ -32,19 +32,25 @@ apt-get install -y -qq \
     modemmanager \
     mobile-broadband-provider-info
 
-progress 50 "Stel NetworkManager op om net die modem te bestuur"
+progress 50 "Stel NetworkManager op om die bekabelde koppelvlak te ignoreer"
 
-# Die bekabelde koppelvlak (enp1s0 ens.) word reeds deur ifupdown
+# Die bekabelde koppelvlak word reeds deur ifupdown
 # (/etc/network/interfaces) bestuur en moet nie ook deur NetworkManager
 # oorgeneem word nie - dit kon die bestaande, werkende verbinding
-# ontwrig. "except:type:gsm" laat NetworkManager slegs die LTE-modem
-# self bestuur, ongeag watter koppelvlaknaam dit kry.
+# ontwrig. Alles ANDERS (die modem, ongeag watter tipe toestel dit
+# blyk te wees - baie LTE-stokkies verskyn eenvoudig as 'n gewone
+# USB-Ethernet-toestel, nie as 'n ModemManager "gsm"-tipe nie) bly
+# NetworkManager se verantwoordelikheid.
+MODEM_ETH_IFACE=$(awk '/^iface/ && $2 != "lo" {print $2; exit}' /etc/network/interfaces 2>/dev/null)
+
 mkdir -p /etc/NetworkManager/conf.d
 
-cat > /etc/NetworkManager/conf.d/10-gsm-only.conf << 'EOF'
+if [ -n "$MODEM_ETH_IFACE" ]; then
+    cat > /etc/NetworkManager/conf.d/10-ignore-wired.conf << EOF
 [keyfile]
-unmanaged-devices=*,except:type:gsm
+unmanaged-devices=interface-name:$MODEM_ETH_IFACE
 EOF
+fi
 
 progress 65 "Begin NetworkManager en ModemManager"
 
