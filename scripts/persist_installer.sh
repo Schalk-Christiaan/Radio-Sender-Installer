@@ -52,12 +52,29 @@ if [ ! -d "$INSTALLER_DIR/.git" ] && command -v git >/dev/null 2>&1; then
         # sonder om enige blob te skryf, en "diff --quiet" self skryf
         # niks nie - lees-alleen, i.p.v. add -A/write-tree wat die hele
         # boom (weer) as voorwerpe stoor net om 'n ja/nee-vraag te
-        # beantwoord. Albei staan in 'n if-voorwaarde, so 'n mislukking
-        # (bv. skyf vol) laat "set -e" nie die hele installasie faal
-        # oor hierdie suiwer inligtingskontrole nie.
-        if git -C "$INSTALLER_DIR" add -N -A 2>/dev/null &&
-           ! git -C "$INSTALLER_DIR" diff --quiet origin/main -- . 2>/dev/null; then
-            warn "origin/main het intussen verander sedert die aflaai - die volgehoue kopie by $INSTALLER_DIR (vir 'radioctl update'/'reconfigure') word na daardie jongste weergawe opgedateer, nie noodwendig presies wat sopas geïnstalleer is nie."
+        # beantwoord.
+        #
+        # "diff --quiet" se afsluitkode onderskei self reeds tussen "geen
+        # verskil nie" (0), "'n regte verskil" (1), en 'n werklike
+        # git-fout soos 'n korrupte voorwerp (>1) - hanteer hulle apart
+        # i.p.v. enige nie-nul afsluitkode as "origin/main het beweeg" te
+        # behandel, en wys die regte git-foutboodskap i.p.v. dit met
+        # 2>/dev/null weg te gooi.
+        if git -C "$INSTALLER_DIR" add -N -A; then
+
+            set +e
+            DIFF_ERR=$(git -C "$INSTALLER_DIR" diff --quiet origin/main -- . 2>&1)
+            DIFF_STATUS=$?
+            set -e
+
+            if [ "$DIFF_STATUS" -eq 1 ]; then
+                warn "origin/main het intussen verander sedert die aflaai - die volgehoue kopie by $INSTALLER_DIR (vir 'radioctl update'/'reconfigure') word na daardie jongste weergawe opgedateer, nie noodwendig presies wat sopas geïnstalleer is nie."
+            elif [ "$DIFF_STATUS" -gt 1 ]; then
+                warn "kon nie nagaan of origin/main intussen verander het nie: $DIFF_ERR"
+            fi
+
+        else
+            warn "kon nie nagaan of origin/main intussen verander het nie ('git add -N -A' het misluk)."
         fi
 
         # Die vouer bevat reeds die tarball se lêers (ongespoor) - koppel
@@ -72,16 +89,14 @@ if [ ! -d "$INSTALLER_DIR/.git" ] && command -v git >/dev/null 2>&1; then
         git -C "$INSTALLER_DIR" branch -q --set-upstream-to=origin/main main
 
     else
-        warn "kon nie git-geskiedenis by $INSTALLER_DIR opstel nie:"
-        FETCH_ERR_INDENTED=$(sed 's/^/  /' "$FETCH_ERR")
-        echo "$FETCH_ERR_INDENTED"
-        { echo "$FETCH_ERR_INDENTED"; } 2>/dev/null > /dev/tty || true
+        FETCH_ERR_SUFFIX=""
+        if [ -s "$FETCH_ERR" ]; then
+            FETCH_ERR_SUFFIX=$'\n'"$(sed 's/^/  /' "$FETCH_ERR")"
+        fi
+        warn "kon nie git-geskiedenis by $INSTALLER_DIR opstel nie:${FETCH_ERR_SUFFIX}"
         warn "Die huidige installasie is nie geraak nie, maar 'radioctl update' sal nie outomaties werk nie totdat die repo handmatig weer afgelaai word (sien README)."
         rm -rf "$INSTALLER_DIR/.git"
     fi
-
-    rm -f "$FETCH_ERR"
-    trap - EXIT
 
 fi
 

@@ -6,8 +6,10 @@ set -o pipefail
 # Bepaal waar die installer werklik lê
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Verbose ondersteuning
-VERBOSE=false
+# Verbose ondersteuning - uitgevoer sodat stap-skripte (via progress.sh se
+# warn()) kan weet of hulle eie /dev/tty-skryf oorbodig sou wees (die
+# --verbose "tee" hieronder wys stdout reeds op die skerm).
+export VERBOSE=false
 
 for arg in "$@"; do
     case "$arg" in

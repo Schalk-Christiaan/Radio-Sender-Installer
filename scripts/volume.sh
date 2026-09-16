@@ -34,11 +34,11 @@ if command -v amixer >/dev/null 2>&1; then
     elif amixer -c "$CARD" sget PCM >/dev/null 2>&1; then
         amixer -c "$CARD" sset PCM "${VOLUME:-100}%" unmute >/dev/null
     else
-        echo "Waarskuwing: geen bruikbare mengertjie op kaart $CARD gevind nie; volume nie gestel nie."
+        warn "geen bruikbare mengertjie op kaart $CARD gevind nie; volume nie gestel nie."
     fi
 
 else
-    echo "Waarskuwing: amixer nie geïnstalleer nie; volume nie gestel nie."
+    warn "amixer nie geïnstalleer nie; volume nie gestel nie."
 fi
 
 progress 80 "Bewaar volume oor herbegin"

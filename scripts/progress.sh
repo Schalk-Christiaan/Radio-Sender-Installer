@@ -41,18 +41,32 @@ progress() {
     } 2>/dev/null > /dev/tty || true
 }
 
+# Skryf teks direk na die beheerterminaal (indien een bestaan), ongeag hoe
+# install.sh hierdie skrip se gewone uitset herlei - sien progress() hierbo
+# vir dieselfde patroon en die rede vir die herleiding-volgorde. 'n Leidende
+# \n dwing 'n vars reël af, ongeag waar progress() se kursor-animasie
+# (\r...geen \n nie by <100%) die kursor laat staan het.
+to_screen() {
+    { printf '\n%s\n' "$1"; } 2>/dev/null > /dev/tty || true
+}
+
 # 'n Waarskuwing wat, soos progress() hierbo, altyd die skerm moet bereik -
 # nie net installer.log nie. install.sh se verstek (nie-verbose) run_step
 # herlei elke stap se hele stdout/stderr na die log toe (>>"$LOG_FILE" 2>&1),
 # so 'n gewone "echo" hier sou 'n operateur wat nie --verbose gebruik nie
 # nooit bereik nie.
+#
+# In --verbose modus ("tee -a" na die log) beland die eerste echo hieronder
+# reeds op die skerm - VERBOSE (deur install.sh uitgevoer) laat die
+# to_screen()-kopie dan oor, anders sou die waarskuwing twee keer agtermekaar
+# verskyn.
 warn() {
 
     local message="$1"
 
-    echo "Waarskuwing: $message"
+    echo "Waarskuwing: $message" || true
 
-    {
-        echo "Waarskuwing: $message"
-    } 2>/dev/null > /dev/tty || true
+    if [ "${VERBOSE:-false}" != true ]; then
+        to_screen "Waarskuwing: $message"
+    fi
 }

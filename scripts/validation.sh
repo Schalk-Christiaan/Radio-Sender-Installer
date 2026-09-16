@@ -28,6 +28,13 @@ ok() {
 warn() {
     echo "[WAARSKUWING] $1"
     WARNINGS=$((WARNINGS+1))
+    # Hierdie skrip se eie warn() (met sy WARNINGS-teller) oorskadu
+    # progress.sh se generiese warn() heeltemal - roep progress.sh se
+    # to_screen() eksplisiet, anders bereik geeneen van hierdie
+    # waarskuwings ooit die skerm in nie-verbose modus nie.
+    if [ "${VERBOSE:-false}" != true ]; then
+        to_screen "[WAARSKUWING] $1"
+    fi
 }
 
 fail() {
