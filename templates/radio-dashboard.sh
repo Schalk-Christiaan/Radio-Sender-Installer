@@ -454,7 +454,7 @@ handle_inligting_item() {
     esac
 }
 
-# --- INSTELLINGS-oortjie: 1-9 (uitsluitlik "radioctl set"-sleutels) -----
+# --- INSTELLINGS-oortjie: 1-10 (uitsluitlik "radioctl set"-sleutels) ----
 handle_instellings_item() {
     local choice="$1" val
 
@@ -504,6 +504,10 @@ handle_instellings_item() {
         9)
             inline_prompt "Volume (0-100): " val
             STATUS_MSG=$(sudo radioctl set VOLUME "$val" 2>&1)
+            ;;
+        10)
+            inline_prompt "Stilte-drempel in sekondes (voor oorskakel na noodmusiek): " val
+            STATUS_MSG=$(sudo radioctl set SILENCE_THRESHOLD "$val" 2>&1)
             ;;
         "")
             STATUS_MSG=""
@@ -943,7 +947,7 @@ draw_instellings_tab() {
         "3) Musiek/sweeper-verhouding" "4) Stasienaam"
         "5) ALSA-klanktoestel" "6) Heartbeat URL"
         "7) Maksimum stroom-buffer" "8) Primêre bron"
-        "9) Volume"
+        "9) Volume" "10) Stilte-drempel"
     )
     print_command_grid items items "$sep_width"
 }

@@ -225,6 +225,27 @@ while true; do
 done
 
 #
+# Stilte-drempel
+#
+
+echo
+
+DEFAULT_SILENCE_THRESHOLD="8"
+
+while true; do
+
+    read -rp "Hoe lank (sekondes) mag die stroom stilbly voor daar na noodmusiek oorgeskakel word? [$DEFAULT_SILENCE_THRESHOLD]: " SILENCE_THRESHOLD
+    SILENCE_THRESHOLD=${SILENCE_THRESHOLD:-$DEFAULT_SILENCE_THRESHOLD}
+
+    if validate_positive_int "$SILENCE_THRESHOLD"; then
+        break
+    fi
+
+    echo "Moet 'n positiewe heelgetal wees."
+
+done
+
+#
 # Heartbeat
 #
 
@@ -378,6 +399,7 @@ echo "Musiek Gewig     : $MUSIC_WEIGHT"
 echo "Sweeper Gewig    : $SWEEPER_WEIGHT"
 echo "ALSA Device      : $ALSA_DEVICE"
 echo "Stroom-buffer    : ${STREAM_BUFFER_MAX}s"
+echo "Stilte-drempel   : ${SILENCE_THRESHOLD}s"
 
 if [ -n "$HEARTBEAT_URL" ]; then
     echo "Heartbeat URL    : $HEARTBEAT_URL"
@@ -455,6 +477,7 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' SWEEPER_WEIGHT "$SWEEPER_WEIGHT"
     echo
     printf '%s=%q\n' STREAM_BUFFER_MAX "$STREAM_BUFFER_MAX"
+    printf '%s=%q\n' SILENCE_THRESHOLD "$SILENCE_THRESHOLD"
     echo
     printf '%s=%q\n' PLAYLIST_RELOAD "$PLAYLIST_RELOAD"
     printf '%s=%q\n' PLAYLIST_PREFETCH "$PLAYLIST_PREFETCH"

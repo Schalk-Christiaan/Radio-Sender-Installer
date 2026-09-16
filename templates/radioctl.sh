@@ -608,7 +608,7 @@ cmd_audio_ports() {
     done < <(amixer -c "$card" scontrols 2>/dev/null | sed -n "s/.*'\(.*\)',.*/\1/p")
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX PRIMARY_SOURCE"
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -653,7 +653,7 @@ cmd_set() {
                 exit 1
             fi
             ;;
-        MUSIC_WEIGHT|SWEEPER_WEIGHT|STREAM_BUFFER_MAX)
+        MUSIC_WEIGHT|SWEEPER_WEIGHT|STREAM_BUFFER_MAX|SILENCE_THRESHOLD)
             if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ]; then
                 echo "Moet 'n positiewe heelgetal wees."
                 exit 1
@@ -739,7 +739,7 @@ cmd_set() {
     rm -f "$tmp"
 
     case "$key" in
-        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE|STREAM_BUFFER_MAX|PRIMARY_SOURCE)
+        STREAM_URL|BACKUP_STREAM_URL|MUSIC_WEIGHT|SWEEPER_WEIGHT|ALSA_DEVICE|STREAM_BUFFER_MAX|SILENCE_THRESHOLD|PRIMARY_SOURCE)
             if [ ! -f "$INSTALLER_DIR/scripts/liquidsoap.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/liquidsoap.sh" >/dev/null; then

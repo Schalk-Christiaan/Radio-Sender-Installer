@@ -16,6 +16,12 @@ alsa_device = "__ALSA_DEVICE__"
 
 stream_buffer_max = __STREAM_BUFFER_MAX__
 
+# Hoeveel sekondes stilte (op die lewendige stroom) toegelaat word voor
+# blank.strip() hieronder dit as "af" behandel en na noodmusiek oorskakel -
+# te kort, en 'n gewone asemhaal-stiltetjie in 'n gesprek skakel per
+# ongeluk reeds oor.
+silence_threshold = __SILENCE_THRESHOLD__
+
 # Watter bron by verstek (geen handmatige wissel aktief nie) eerste
 # probeer word: "1" verkies die hoofstroom, "2" die rugsteunstroom. Word
 # net "2" as 'n rugsteunstroom ook geconfigureer is - radioctl valideer
@@ -40,12 +46,10 @@ file.write(
 # blank.strip maak die bron "onbeskikbaar" sodra dit stil raak, al bly
 # die HTTP-koppeling tegnies gekoppel - só skakel fallback() ook oor by
 # "dooie lug" (bv. 'n koderfout by die bron), nie net by 'n werklike
-# ontkoppeling nie. max_blank=3.0 (verstek is 20 sekondes!) verkort die
-# hoeveelheid stilte wat 'n luisteraar ooit sou hoor voordat daar
-# oorgeskakel word - 'n regte, kort stiltetjie tussen snitte by die
-# bron self sal nie per ongeluk 'n wissel veroorsaak nie, want
-# min_noise=0.0 (verstek) beteken enige geluid breek die stilte-telling
-# dadelik weer af.
+# ontkoppeling nie. max_blank=silence_threshold (Liquidsoap se eie
+# verstek is 20 sekondes) - min_noise=0.0 (verstek) beteken enige geluid
+# breek die stilte-telling dadelik weer af, so 'n regte, kort stiltetjie
+# tussen sinne by die bron self veroorsaak nie per ongeluk 'n wissel nie.
 #
 # buffer() met 'n begrensde max= voorkom dat 'n klein klok-verskil tussen
 # die netwerkstroom en die klankkaart oor ure/dae onbeperk opbou tot 'n
@@ -69,7 +73,7 @@ radio =
   buffer(
     max=stream_buffer_max,
     blank.strip(
-      max_blank=3.0,
+      max_blank=silence_threshold,
       input.http(
         self_sync=false,
         id="radio_input",
