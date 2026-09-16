@@ -94,6 +94,15 @@ rm -f /etc/systemd/system/radio-orania-restart.service
 rm -f /usr/local/bin/restart-radio.sh
 
 echo
+echo ">>> Verwyder modem-failover"
+
+systemctl stop radio-network-watchdog.service 2>/dev/null || true
+systemctl disable radio-network-watchdog.service 2>/dev/null || true
+
+rm -f /etc/systemd/system/radio-network-watchdog.service
+rm -f /etc/NetworkManager/conf.d/10-gsm-only.conf
+
+echo
 echo ">>> Verwyder File Browser"
 
 rm -f /usr/local/bin/filebrowser

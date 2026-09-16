@@ -1083,11 +1083,12 @@ draw() {
     local status_plain
     status_plain=$(printf '%s\n' "$status_body" | sed -E 's/\x1b\[[0-9;]*m//g')
 
-    local bron_val aanlyn_val skyf_val
+    local bron_val aanlyn_val skyf_val netwerk_val
     bron_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Aktiewe Bron *: *//p' | sed 's/ (.*//')
     [ -z "$bron_val" ] && bron_val="onbekend"
     aanlyn_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Aanlyn *: *//p')
     skyf_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Beskikbare skyfspasie: *//p')
+    netwerk_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Netwerk *: *//p')
 
     local svc_total svc_up
     svc_total=$(printf '%s\n' "$status_plain" | grep -cE '\.(service|timer) +loop( nie)?$')
@@ -1107,6 +1108,19 @@ draw() {
     local card_values=("$bron_val" "$aanlyn_val" "$dienste_val" "${skyf_val:-onbekend}")
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in draw_status_cards
     local card_colors=("" "" "$dienste_color" "")
+
+    # Netwerk-kaartjie verskyn net as modem-failover aktief is (die
+    # status-lêer bestaan dan) - op installasies daarsonder is dit
+    # eenvoudig nie relevant nie.
+    if [ -n "$netwerk_val" ]; then
+        card_titles+=(Netwerk)
+        card_values+=("$netwerk_val")
+        case "$netwerk_val" in
+            Ethernet) card_colors+=("$GREEN") ;;
+            Modem*)   card_colors+=("$RED") ;;
+            *)        card_colors+=("$RED") ;;
+        esac
+    fi
 
     local url_line down_lines
     url_line=$(printf '%s\n' "$status_body" | grep '^Stroom URL')

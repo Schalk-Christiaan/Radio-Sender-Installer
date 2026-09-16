@@ -377,6 +377,19 @@ else
 fi
 
 #
+# Modem-failover
+#
+
+echo
+read -rp "Outomatiese oorskakel na 'n LTE-modem-stokkie as die internet afgaan? (Y/N) [N]: " MODEM
+
+if [[ "$MODEM" =~ ^[Yy]$ ]]; then
+    INSTALL_MODEM_FAILOVER="yes"
+else
+    INSTALL_MODEM_FAILOVER="no"
+fi
+
+#
 # Opsomming
 #
 
@@ -431,6 +444,12 @@ if [ "$INSTALL_DASHBOARD" = "yes" ]; then
     echo "Beheerpaneel     : Ja"
 else
     echo "Beheerpaneel     : Nee"
+fi
+
+if [ "$INSTALL_MODEM_FAILOVER" = "yes" ]; then
+    echo "Modem-failover   : Ja"
+else
+    echo "Modem-failover   : Nee"
 fi
 
 echo
@@ -496,6 +515,8 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' INSTALL_DASHBOARD "$INSTALL_DASHBOARD"
     printf '%s=%q\n' ICECAST_PORT "$ICECAST_PORT"
     printf '%s=%q\n' ICECAST_SOURCE_PASSWORD "$ICECAST_SOURCE_PASSWORD"
+    echo
+    printf '%s=%q\n' INSTALL_MODEM_FAILOVER "$INSTALL_MODEM_FAILOVER"
 } > "$CONFIG_DIR/environment.conf"
 
 install -m 600 \

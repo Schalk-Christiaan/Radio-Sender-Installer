@@ -1,0 +1,15 @@
+[Unit]
+Description=Radio Orania Netwerk-bewaker (modem-failover)
+After=network-online.target NetworkManager.service ModemManager.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/radio-orania/network/network-watchdog.sh
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

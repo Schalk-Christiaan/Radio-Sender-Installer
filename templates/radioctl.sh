@@ -76,6 +76,10 @@ cmd_status() {
     fi
     echo "${bold}Volume${reset}        : ${volume_str}"
 
+    if [ -f "$BASE_DIR/network/active_network" ]; then
+        echo "${bold}Netwerk${reset}       : $(cat "$BASE_DIR/network/active_network" 2>/dev/null || echo onbekend)"
+    fi
+
     local active_label="onbekend" active_url=""
     if [ -f "$BASE_DIR/liquidsoap/active_source" ]; then
         case "$(cat "$BASE_DIR/liquidsoap/active_source" 2>/dev/null)" in
@@ -108,7 +112,7 @@ cmd_status() {
 
     echo
 
-    for svc in radio-orania.service filebrowser.service radio-heartbeat.service radio-orania-restart.timer; do
+    for svc in radio-orania.service filebrowser.service radio-heartbeat.service radio-orania-restart.timer radio-network-watchdog.service; do
         if [ -f "/etc/systemd/system/$svc" ]; then
             if systemctl is-active --quiet "$svc" 2>/dev/null; then
                 printf "%-28s %s\n" "$svc" "${green}loop${reset}"

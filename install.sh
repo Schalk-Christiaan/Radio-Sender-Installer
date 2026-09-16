@@ -154,6 +154,8 @@ run_step "Installeer diens" "$SCRIPT_DIR/scripts/service.sh"
 
 run_step "Monitering opstel" "$SCRIPT_DIR/scripts/monitoring.sh"
 
+run_step "Modem-failover opstel" "$SCRIPT_DIR/scripts/modem.sh"
+
 if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
     run_step "Installeer outo-restart timer" "$SCRIPT_DIR/scripts/restarttimer.sh"
 elif [ -f /etc/systemd/system/radio-orania-restart.timer ]; then
