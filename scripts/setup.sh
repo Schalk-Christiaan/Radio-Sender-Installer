@@ -373,9 +373,20 @@ echo
 read -rp "Outomatiese oorskakel na 'n LTE-modem-stokkie as die internet afgaan? (Y/N) [N]: " MODEM
 
 if [[ "$MODEM" =~ ^[Yy]$ ]]; then
+
     INSTALL_MODEM_FAILOVER="yes"
+
+    read -rp "Watter een moet die PRIMÊRE netwerk wees - ethernet of modem? [ethernet]: " PRIMARY_NETWORK
+    PRIMARY_NETWORK=${PRIMARY_NETWORK:-ethernet}
+
+    case "$PRIMARY_NETWORK" in
+        ethernet|modem) ;;
+        *) PRIMARY_NETWORK="ethernet" ;;
+    esac
+
 else
     INSTALL_MODEM_FAILOVER="no"
+    PRIMARY_NETWORK="ethernet"
 fi
 
 #
@@ -432,6 +443,7 @@ fi
 
 if [ "$INSTALL_MODEM_FAILOVER" = "yes" ]; then
     echo "Modem-failover   : Ja"
+    echo "Primêre netwerk  : $PRIMARY_NETWORK"
 else
     echo "Modem-failover   : Nee"
 fi
@@ -500,6 +512,7 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' ICECAST_SOURCE_PASSWORD "$ICECAST_SOURCE_PASSWORD"
     echo
     printf '%s=%q\n' INSTALL_MODEM_FAILOVER "$INSTALL_MODEM_FAILOVER"
+    printf '%s=%q\n' PRIMARY_NETWORK "$PRIMARY_NETWORK"
 } > "$CONFIG_DIR/environment.conf"
 
 install -m 600 \

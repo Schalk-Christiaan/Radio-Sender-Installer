@@ -454,7 +454,7 @@ handle_inligting_item() {
     esac
 }
 
-# --- INSTELLINGS-oortjie: 1-10 (uitsluitlik "radioctl set"-sleutels) ----
+# --- INSTELLINGS-oortjie: 1-11 (uitsluitlik "radioctl set"-sleutels) ----
 handle_instellings_item() {
     local choice="$1" val
 
@@ -508,6 +508,10 @@ handle_instellings_item() {
         10)
             inline_prompt "Stilte-drempel in sekondes (voor oorskakel na noodmusiek): " val
             STATUS_MSG=$(sudo radioctl set SILENCE_THRESHOLD "$val" 2>&1)
+            ;;
+        11)
+            inline_prompt "Primêre netwerk (ethernet/modem): " val
+            STATUS_MSG=$(sudo radioctl set PRIMARY_NETWORK "$val" 2>&1)
             ;;
         "")
             STATUS_MSG=""
@@ -948,6 +952,7 @@ draw_instellings_tab() {
         "5) ALSA-klanktoestel" "6) Heartbeat URL"
         "7) Maksimum stroom-buffer" "8) Primêre bron"
         "9) Volume" "10) Stilte-drempel"
+        "11) Primêre netwerk"
     )
     print_command_grid items items "$sep_width"
 }

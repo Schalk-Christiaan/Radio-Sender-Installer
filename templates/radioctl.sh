@@ -614,7 +614,7 @@ cmd_audio_ports() {
     done < <(amixer -c "$card" scontrols 2>/dev/null | sed -n "s/.*'\(.*\)',.*/\1/p")
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE"
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE PRIMARY_NETWORK"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -711,6 +711,15 @@ cmd_set() {
                 exit 1
             fi
             ;;
+        PRIMARY_NETWORK)
+            case "$value" in
+                ethernet|modem) ;;
+                *)
+                    echo "Moet 'ethernet' of 'modem' wees."
+                    exit 1
+                    ;;
+            esac
+            ;;
         *)
             echo "Onbekende of nie-verstelbare instelling: $key"
             echo "Beskikbaar: $SETTABLE_KEYS"
@@ -753,6 +762,17 @@ cmd_set() {
                 echo "$key opgedateer na '$value' en toegepas.$primary_reset_note"
             else
                 echo "$key gestoor, maar kon nie toegepas word nie - die nuwe waarde het Liquidsoap se kontrole gedruip."
+                exit 1
+            fi
+            ;;
+        PRIMARY_NETWORK)
+            if ! systemctl list-unit-files radio-network-watchdog.service >/dev/null 2>&1 ||
+               ! systemctl is-enabled --quiet radio-network-watchdog.service 2>/dev/null; then
+                echo "$key gestoor, maar modem-failover is nie aktief nie - het geen effek totdat dit aangeskakel word nie."
+            elif systemctl restart radio-network-watchdog.service; then
+                echo "$key opgedateer na '$value' en toegepas."
+            else
+                echo "$key gestoor, maar kon nie toegepas word nie."
                 exit 1
             fi
             ;;
