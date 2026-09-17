@@ -494,7 +494,9 @@ cmd_test_heartbeat() {
         exit 1
     fi
 
-    if curl -fsS --max-time 10 -o /dev/null "$HEARTBEAT_URL"; then
+    local base_url="${HEARTBEAT_URL%%\?*}"
+
+    if curl -fsS --max-time 10 -o /dev/null "${base_url}?status=up&msg=Handmatige%20toets&ping="; then
         echo "Heartbeat-toets: geslaag."
     else
         echo "Heartbeat-toets: misluk."
@@ -778,6 +780,13 @@ cmd_set() {
             if [ ! -f "$INSTALLER_DIR/scripts/monitoring.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
             elif with_installer_config bash "$INSTALLER_DIR/scripts/monitoring.sh" >/dev/null; then
+                # Die geskeduleerde-herbegin se eie push-boodskappe
+                # gebruik dieselfde HEARTBEAT_URL, ingebak in
+                # restart-radio.sh by installasie - herskep dit ook,
+                # anders bly dit die ou URL gebruik.
+                if [ "${INSTALL_RESTART_TIMER:-no}" = "yes" ] && [ -f "$INSTALLER_DIR/scripts/restarttimer.sh" ]; then
+                    with_installer_config bash "$INSTALLER_DIR/scripts/restarttimer.sh" >/dev/null || true
+                fi
                 echo "$key opgedateer na '$value' en toegepas."
             else
                 echo "$key gestoor, maar kon nie toegepas word nie."

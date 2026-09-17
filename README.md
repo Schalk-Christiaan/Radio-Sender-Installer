@@ -106,6 +106,22 @@ Indien geaktiveer, bestuur media deur File Browser. URL/gebruiker/wagwoord in `/
 
 ---
 
+## Heartbeat / Status-kennisgewings (Uptime Kuma)
+
+`HEARTBEAT_URL` (opsioneel, `radioctl set HEARTBEAT_URL <url>`) is 'n Uptime Kuma
+(of soortgelyke) "push"-monitor se URL. Elke 5s stuur die sender `?status=up|down&msg=...`:
+
+* `status=up`, "Hoofstroom (Ethernet)" — alles normaal
+* `status=down`, "Noodmusiek (Ethernet)" — op plaaslike musiek, geen stroom bereikbaar nie
+* `status=down`, "Hoofstroom (Modem)" — internet via die bekabelde verbinding af, op die LTE-modem
+* `status=down`, "Rugsteun-stroom (...)" — hoofstroom af, op die rugsteun-stroom
+
+Kuma stuur dan self 'n kennisgewing net wanneer iets van die norm afwyk, nie by elke
+gewone ping nie. Die geskeduleerde-herbegin-funksie (indien aktief) gebruik dieselfde
+URL vir sy eie sukses/mislukking-boodskappe.
+
+---
+
 ## `radioctl` Beheerpaneel
 
 ```text
@@ -121,8 +137,10 @@ radioctl bufferstat           Regstreekse netwerk-buffer van die aktiewe bron
 radioctl datausage            Data-verbruik vandag/maand (vnstat)
 radioctl sysstats             CPU-las, geheue, skyfspasie, CPU-temperatuur
 radioctl set <S> <W>          Verander 'n instelling (STREAM_URL, BACKUP_STREAM_URL,
-                              MUSIC_WEIGHT, SWEEPER_WEIGHT, ALSA_DEVICE, STATION_NAME,
-                              HEARTBEAT_URL, STREAM_BUFFER_MAX)
+                              MUSIC_WEIGHT, SWEEPER_WEIGHT, ALSA_DEVICE, VOLUME,
+                              AUDIO_PORT, STATION_NAME, HEARTBEAT_URL,
+                              STREAM_BUFFER_MAX, SILENCE_THRESHOLD, PRIMARY_SOURCE)
+radioctl audio-ports           Lys elke aux-uitsetpoort met volume, demp en jack-status
 radioctl passwords            Al die gestoorde wagwoorde
 radioctl reconfigure          Loop die opstelling-assistent weer
 radioctl update               Trek jongste weergawe en herinstalleer

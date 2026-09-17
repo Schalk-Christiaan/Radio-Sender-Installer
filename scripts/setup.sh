@@ -250,16 +250,18 @@ done
 #
 
 echo
+echo "Uptime Kuma (of soortgelyke) push-URL - stuur elke 5s 'n status-opdatering"
+echo "('n Kuma-\"push\"-monitor se URL, gewoonlik .../api/push/<token>)."
 
 while true; do
 
-    read -rp "Heartbeat URL (opsioneel): " HEARTBEAT_URL
+    read -rp "Heartbeat/Status Push URL (opsioneel): " HEARTBEAT_URL
 
     if [ -z "$HEARTBEAT_URL" ] || validate_url "$HEARTBEAT_URL"; then
         break
     fi
 
-    echo "Heartbeat URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
+    echo "URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
 
 done
 
@@ -339,23 +341,10 @@ if [[ "$RESTART_TIMER" =~ ^[Yy]$ ]]; then
 
     done
 
-    while true; do
-
-        read -rp "Uptime Kuma Push URL (opsioneel): " RESTART_PUSH_URL
-
-        if [ -z "$RESTART_PUSH_URL" ] || validate_url "$RESTART_PUSH_URL"; then
-            break
-        fi
-
-        echo "Push URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
-
-    done
-
 else
 
     INSTALL_RESTART_TIMER="no"
     RESTART_SCHEDULE="$DEFAULT_RESTART_SCHEDULE"
-    RESTART_PUSH_URL=""
 
 fi
 
@@ -431,11 +420,6 @@ fi
 if [ "$INSTALL_RESTART_TIMER" = "yes" ]; then
     echo "Outo-restart     : Ja"
     echo "Restart Tye      : $RESTART_SCHEDULE"
-    if [ -n "$RESTART_PUSH_URL" ]; then
-        echo "Kuma Push URL    : Ingestel"
-    else
-        echo "Kuma Push URL    : Nie ingestel"
-    fi
 else
     echo "Outo-restart     : Nee"
 fi
@@ -510,7 +494,6 @@ PLAYLIST_PREFETCH="10"
     echo
     printf '%s=%q\n' INSTALL_RESTART_TIMER "$INSTALL_RESTART_TIMER"
     printf '%s=%q\n' RESTART_SCHEDULE "$RESTART_SCHEDULE"
-    printf '%s=%q\n' RESTART_PUSH_URL "$RESTART_PUSH_URL"
     echo
     printf '%s=%q\n' INSTALL_DASHBOARD "$INSTALL_DASHBOARD"
     printf '%s=%q\n' ICECAST_PORT "$ICECAST_PORT"
