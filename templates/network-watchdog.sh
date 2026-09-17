@@ -11,6 +11,14 @@ CHECK_URL="https://1.1.1.1"
 CHECK_INTERVAL=20
 STATUS_FILE="/opt/radio-orania/network/active_network"
 
+# Wag-tydperk (hysteresis) teen "flapping" - 'n wisselvallige verbinding
+# (aan-af-aan-af) moet nie elke 20s 'n regte oorskakeling veroorsaak
+# nie. Vereis eers 'n paar OPEENVOLGENDE mislukkings voor daar na die
+# modem oorgeskakel word, en 'n paar opeenvolgende suksesse voor daar
+# terug geskakel word.
+FAIL_THRESHOLD=3
+RECOVER_THRESHOLD=3
+
 # Roete-metric wanneer die modem AKTIEF in gebruik is (moet laer as
 # ethernet s'n wees, sodat dit verkies word), en wanneer dit slegs
 # batig staan (moet HOOG genoeg wees om NOOIT per ongeluk voor 'n
@@ -79,11 +87,34 @@ remove_modem_override() {
     ip route del default metric "$MODEM_METRIC_ACTIVE" 2>/dev/null || true
 }
 
+# Begin op die aanname dat ethernet werk - as dit nie so is nie,
+# herstel die drempel-telling dit vanself binne FAIL_THRESHOLD siklusse.
+current_network="Ethernet"
+fail_count=0
+success_count=0
+
 while true; do
 
     MODEM_DEV=$(get_modem_device)
 
     if eth_reachable; then
+        fail_count=0
+        success_count=$((success_count + 1))
+    else
+        success_count=0
+        fail_count=$((fail_count + 1))
+    fi
+
+    # Oorskakel net wanneer die drempel bereik is - 'n enkele
+    # mislukte/suksesvolle toets alleen verander niks nie, dít voorkom
+    # die heen-en-weer-"flap" by 'n wisselvallige verbinding.
+    if [ "$current_network" = "Ethernet" ] && [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
+        current_network="Modem"
+    elif [ "$current_network" = "Modem" ] && [ "$success_count" -ge "$RECOVER_THRESHOLD" ]; then
+        current_network="Ethernet"
+    fi
+
+    if [ "$current_network" = "Ethernet" ]; then
 
         remove_modem_override
 
