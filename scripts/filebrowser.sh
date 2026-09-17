@@ -82,6 +82,11 @@ install -m 755 \
     /tmp/filebrowser \
     /usr/local/bin/filebrowser
 
+# Dwing die skryf werklik na skyf - sonder hierdie "sync" kan 'n
+# kragonderbreking kort ná installasie die binêre steeds korrupteer,
+# al het die opdrag hierbo reeds "suksesvol" teruggekeer.
+sync
+
 progress 70 "Kontroleer bestaande databasis"
 
 NEW_INSTALL=true

@@ -175,6 +175,13 @@ run_step "Stel toestemmings reg" "$SCRIPT_DIR/scripts/permissions.sh"
 
 run_step "Valideer installasie" "$SCRIPT_DIR/scripts/validation.sh"
 
+# "install"/"cp" se sukses beteken net dat die skryf in die
+# bestuurstelsel se geheue-kas is, nie noodwendig reeds werklik op skyf
+# nie - "sync" dwing dit deur voordat "Installasie voltooi" hieronder
+# gewys word, sodat 'n kragonderbreking net daarna nie enige geskrewe
+# lêer (soos die File Browser-binêre) kan korrupteer nie.
+sync
+
 echo
 echo "==================="
 echo "Installasie voltooi"
