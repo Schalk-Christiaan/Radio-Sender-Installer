@@ -47,7 +47,10 @@ progress 25 "Laai File Browser af"
 
 TMP_FILE="/tmp/filebrowser.tar.gz"
 
-curl -L \
+# "-f" laat curl met 'n fout misluk by 'n HTTP-foutantwoord (bv.
+# GitHub-tempo-beperking) i.p.v. stilweg die foutbladsy se inhoud na
+# $TMP_FILE te skryf asof dit die regte tarball is.
+curl -fL \
     "https://github.com/filebrowser/filebrowser/releases/latest/download/linux-$FB_ARCH-filebrowser.tar.gz" \
     -o "$TMP_FILE"
 
@@ -59,6 +62,17 @@ tar -xzf "$TMP_FILE" -C /tmp
 
 if [ ! -f /tmp/filebrowser ]; then
     echo "File Browser binary ontbreek na uitpak."
+    exit 1
+fi
+
+chmod +x /tmp/filebrowser
+
+# Rook-toets voordat die stelselwye binêre oorskryf word - 'n
+# onderbroke aflaai of skrywe (bv. deur 'n kragonderbreking) kan 'n
+# geldige-lyk maar korrupte ELF-lêer agterlaat wat eers by uitvoering
+# (met 'n segmentasiefout) faal, nie by "tar" self nie.
+if ! /tmp/filebrowser version >/dev/null 2>&1; then
+    echo "File Browser binary werk nie na aflaai nie (moontlik onderbroke aflaai) - probeer weer."
     exit 1
 fi
 
