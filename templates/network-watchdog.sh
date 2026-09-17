@@ -10,7 +10,7 @@
 source /opt/radio-orania/config/environment.conf
 
 CHECK_URL="https://1.1.1.1"
-CHECK_INTERVAL=20
+CHECK_INTERVAL=5
 STATUS_FILE="/opt/radio-orania/network/active_network"
 
 # Watter koppelvlak eerste probeer word: "ethernet" (verstek) of
@@ -19,12 +19,14 @@ STATUS_FILE="/opt/radio-orania/network/active_network"
 PRIMARY_NETWORK="${PRIMARY_NETWORK:-ethernet}"
 
 # Wag-tydperk (hysteresis) teen "flapping" - 'n wisselvallige verbinding
-# (aan-af-aan-af) moet nie elke 20s 'n regte oorskakeling veroorsaak
-# nie. Vereis eers 'n paar OPEENVOLGENDE mislukkings voor daar na die
-# ander koppelvlak oorgeskakel word, en 'n paar opeenvolgende suksesse
-# voor daar teruggeskakel word.
-FAIL_THRESHOLD=3
-RECOVER_THRESHOLD=3
+# (aan-af-aan-af) moet nie elke toets-siklus 'n regte oorskakeling
+# veroorsaak nie. Vereis eers 'n paar OPEENVOLGENDE mislukkings voor
+# daar na die ander koppelvlak oorgeskakel word, en 'n paar
+# opeenvolgende suksesse voor daar teruggeskakel word. 12 siklusse x 5s
+# = steeds ~60s totale reaksietyd (net vinniger bemonster, sodat die
+# "Netwerk"-blokkie op die dashboard/radioctl vinniger opdateer).
+FAIL_THRESHOLD=12
+RECOVER_THRESHOLD=12
 
 # Roete-metric wanneer 'n koppelvlak AKTIEF in gebruik is (moet laag
 # genoeg wees om verkies te word), en wanneer dit slegs batig staan
@@ -44,7 +46,7 @@ write_status() {
 iface_reachable() {
     local iface="$1"
     [ -n "$iface" ] || return 1
-    curl -fsS --max-time 6 --interface "$iface" -o /dev/null "$CHECK_URL" 2>/dev/null
+    curl -fsS --max-time 3 --interface "$iface" -o /dev/null "$CHECK_URL" 2>/dev/null
 }
 
 # Enige nmcli-toestel wat gekoppel is, NIE die bekende bekabelde

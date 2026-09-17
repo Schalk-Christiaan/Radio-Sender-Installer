@@ -1217,7 +1217,7 @@ while true; do
 
     draw
 
-    read_timeout=5
+    read_timeout=2
     [ "$PLAYING" = true ] && read_timeout=1
 
     read_main_key
