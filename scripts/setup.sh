@@ -384,9 +384,23 @@ if [[ "$MODEM" =~ ^[Yy]$ ]]; then
         *) PRIMARY_NETWORK="ethernet" ;;
     esac
 
+    while true; do
+
+        read -rp "Netwerk-oorskakel-tydperk in sekondes (hoe lank onstabiel voor daar oorgeskakel word) [60]: " NETWORK_FAILOVER_DELAY
+        NETWORK_FAILOVER_DELAY=${NETWORK_FAILOVER_DELAY:-60}
+
+        if validate_positive_int "$NETWORK_FAILOVER_DELAY"; then
+            break
+        fi
+
+        echo "Moet 'n positiewe heelgetal wees."
+
+    done
+
 else
     INSTALL_MODEM_FAILOVER="no"
     PRIMARY_NETWORK="ethernet"
+    NETWORK_FAILOVER_DELAY="60"
 fi
 
 #
@@ -444,6 +458,7 @@ fi
 if [ "$INSTALL_MODEM_FAILOVER" = "yes" ]; then
     echo "Modem-failover   : Ja"
     echo "Primêre netwerk  : $PRIMARY_NETWORK"
+    echo "Oorskakel-tyd    : ${NETWORK_FAILOVER_DELAY}s"
 else
     echo "Modem-failover   : Nee"
 fi
@@ -513,6 +528,7 @@ PLAYLIST_PREFETCH="10"
     echo
     printf '%s=%q\n' INSTALL_MODEM_FAILOVER "$INSTALL_MODEM_FAILOVER"
     printf '%s=%q\n' PRIMARY_NETWORK "$PRIMARY_NETWORK"
+    printf '%s=%q\n' NETWORK_FAILOVER_DELAY "$NETWORK_FAILOVER_DELAY"
 } > "$CONFIG_DIR/environment.conf"
 
 install -m 600 \

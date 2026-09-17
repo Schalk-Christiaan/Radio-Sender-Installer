@@ -19,14 +19,15 @@ STATUS_FILE="/opt/radio-orania/network/active_network"
 PRIMARY_NETWORK="${PRIMARY_NETWORK:-ethernet}"
 
 # Wag-tydperk (hysteresis) teen "flapping" - 'n wisselvallige verbinding
-# (aan-af-aan-af) moet nie elke toets-siklus 'n regte oorskakeling
-# veroorsaak nie. Vereis eers 'n paar OPEENVOLGENDE mislukkings voor
-# daar na die ander koppelvlak oorgeskakel word, en 'n paar
-# opeenvolgende suksesse voor daar teruggeskakel word. 12 siklusse x 5s
-# = steeds ~60s totale reaksietyd (net vinniger bemonster, sodat die
-# "Netwerk"-blokkie op die dashboard/radioctl vinniger opdateer).
-FAIL_THRESHOLD=12
-RECOVER_THRESHOLD=12
+# (aan-af-aan-af) moet nie elke toets-siklus (5s) 'n regte oorskakeling
+# veroorsaak nie. NETWORK_FAILOVER_DELAY (sekondes, radioctl se "set
+# NETWORK_FAILOVER_DELAY") bepaal hoe lank 'n koppelvlak onafgebroke
+# onstabiel/stabiel moet wees voor daar (albei rigtings) oorgeskakel
+# word - omgeskakel na 'n aantal 5s-toets-siklusse, afgerond op.
+FAILOVER_CYCLES=$(( (${NETWORK_FAILOVER_DELAY:-60} + CHECK_INTERVAL - 1) / CHECK_INTERVAL ))
+[ "$FAILOVER_CYCLES" -lt 1 ] && FAILOVER_CYCLES=1
+FAIL_THRESHOLD="$FAILOVER_CYCLES"
+RECOVER_THRESHOLD="$FAILOVER_CYCLES"
 
 # Roete-metric wanneer 'n koppelvlak AKTIEF in gebruik is (moet laag
 # genoeg wees om verkies te word), en wanneer dit slegs batig staan

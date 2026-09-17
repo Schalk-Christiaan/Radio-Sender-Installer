@@ -614,7 +614,7 @@ cmd_audio_ports() {
     done < <(amixer -c "$card" scontrols 2>/dev/null | sed -n "s/.*'\(.*\)',.*/\1/p")
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE PRIMARY_NETWORK"
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE PRIMARY_NETWORK NETWORK_FAILOVER_DELAY"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -720,6 +720,12 @@ cmd_set() {
                     ;;
             esac
             ;;
+        NETWORK_FAILOVER_DELAY)
+            if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ]; then
+                echo "Moet 'n positiewe heelgetal (sekondes) wees."
+                exit 1
+            fi
+            ;;
         *)
             echo "Onbekende of nie-verstelbare instelling: $key"
             echo "Beskikbaar: $SETTABLE_KEYS"
@@ -765,7 +771,7 @@ cmd_set() {
                 exit 1
             fi
             ;;
-        PRIMARY_NETWORK)
+        PRIMARY_NETWORK|NETWORK_FAILOVER_DELAY)
             if ! systemctl list-unit-files radio-network-watchdog.service >/dev/null 2>&1 ||
                ! systemctl is-enabled --quiet radio-network-watchdog.service 2>/dev/null; then
                 echo "$key gestoor, maar modem-failover is nie aktief nie - het geen effek totdat dit aangeskakel word nie."
