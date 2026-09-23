@@ -82,7 +82,7 @@ Structure to know before touching it (see also `docs/adr/0001-dashboard-single-s
 
 ### Security patterns to preserve
 
-- Radio/File Browser/heartbeat services run as the unprivileged `radio-orania` user; the dashboard's `radio-admin` user only has passwordless sudo to `radioctl` itself, nothing broader.
+- Radio/File Browser/notify (ntfy) services run as the unprivileged `radio-orania` user; the dashboard's `radio-admin` user only has passwordless sudo to `radioctl` itself, nothing broader.
 - Any value that ends up in a generated shell/config/Liquidsoap file goes through validation (reject `"'` `` ` `` `;` `\` `$`) and, for `environment.conf`, `printf %q` quoting — follow this for any new configurable field.
 - `environment.conf` and credential files are `chmod 600`.
 

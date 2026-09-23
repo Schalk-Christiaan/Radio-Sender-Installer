@@ -26,7 +26,7 @@ This was the third iteration of the dashboard's settings UI in one session; the 
 
 Two tabs were added after this ADR was first written, both following the same rules above (arrows-only, numbered from 1, no extra gate):
 
-- **TOETS** — fault-injection tests (simulated source/internet loss, service-crash, heartbeat, soundcard). Added alongside the original three tabs.
+- **TOETS** — fault-injection tests (simulated source/internet loss, service-crash, notification (formerly heartbeat), soundcard). Added alongside the original three tabs.
 - **INLIGTING** — added later to hold STELSEL (network buffer, data usage, CPU/memory/temperature) plus Logs (moved off BEHEER). STELSEL was originally specified as always-visible under STATUS regardless of active tab (see the original paragraph above); the user later asked for it to move into its own tab together with Logs instead, so it no longer falls under the "always visible" rule — `update_stelsel_body()` in the dashboard now only runs while INLIGTING is the active tab.
 
 Current tab order (before the ONDERHOUD split below): BEHEER (default) → INLIGTING → INSTELLINGS → GEVAARLIK → TOETS.

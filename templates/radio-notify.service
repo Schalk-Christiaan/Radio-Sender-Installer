@@ -1,12 +1,12 @@
 [Unit]
-Description=Radio Orania Heartbeat
+Description=Radio Orania Kennisgewings (ntfy)
 After=network-online.target radio-orania.service
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=radio-orania
-ExecStart=/opt/radio-orania/monitoring/heartbeat.sh
+ExecStart=/opt/radio-orania/monitoring/notify.sh
 
 Restart=always
 RestartSec=5

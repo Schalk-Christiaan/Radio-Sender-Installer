@@ -26,7 +26,7 @@ The dashboard tab holding destructive/sensitive actions — revealing stored pas
 The live system readouts (network buffer, data usage, CPU load, memory, temperature) shown on the INLIGTING dashboard tab. Not a tab itself, and not always-visible — it only refreshes while INLIGTING is the active tab.
 
 **TOETS** (dashboard tab):
-The dashboard tab holding fault-injection tests (simulated source/internet loss, a service-crash test, heartbeat and soundcard checks) used to verify failover behavior without a real outage.
+The dashboard tab holding fault-injection tests (simulated source/internet loss, a service-crash test, ntfy-notification and soundcard checks) used to verify failover behavior without a real outage.
 
 **Aktiewe Bron** (active source):
 Whichever of the primary stream, backup stream, or local noodmusiek is actually on-air at a given moment, as tracked by `active_source` and reported by `radioctl status`. Distinct from which sources are merely *configured*.

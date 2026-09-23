@@ -12,7 +12,7 @@
 * Outomatiese failover (ook by stilte/"dooie lug", nie net ontkoppeling) en terugskakeling
 * Klankvlak-egalisering en begrensde skok-buffer teen FM-vertraging
 * ALSA-klankuitset, Systemd-diens as toegewyde onbevoorregte gebruiker
-* File Browser vir media, heartbeat-ondersteuning
+* File Browser vir media, ntfy-kennisgewings
 * `radioctl` CLI en opsionele beheerpaneel-skerm
 * Debian 13, eenvoudige installasie
 
@@ -84,7 +84,7 @@ Die installer word na `/opt/radio-orania/installer` gekopieer sodat `radioctl re
 
 ## Sekuriteit
 
-* Radio-, File Browser- en heartbeat-dienste loop as toegewyde, onbevoorregte gebruiker (`radio-orania`), nie root nie
+* Radio-, File Browser- en kennisgewing-dienste loop as toegewyde, onbevoorregte gebruiker (`radio-orania`), nie root nie
 * Gebruikersinvoer word gevalideer en veilig ge-kwoteer voor dit na konfigurasie-/stelsel-lêers geskryf word
 * `environment.conf` en File Browser se `credentials.txt` is `chmod 600`
 
@@ -106,19 +106,26 @@ Indien geaktiveer, bestuur media deur File Browser. URL/gebruiker/wagwoord in `/
 
 ---
 
-## Heartbeat / Status-kennisgewings (Uptime Kuma)
+## Kennisgewings (ntfy) en monitering (Beszel)
 
-`HEARTBEAT_URL` (opsioneel, `radioctl set HEARTBEAT_URL <url>`) is 'n Uptime Kuma
-(of soortgelyke) "push"-monitor se URL. Elke 5s stuur die sender `?status=up|down&msg=...`:
+Die sender stuur self [ntfy](https://ntfy.sh)-kennisgewings (`radio-notify.service`) oor
+dinge wat net hy kan sien. 'n Nuwe toestand moet 30s aaneen geld voor daar 'n
+kennisgewing gaan, en boodskappe wat nie gestuur kon word nie (geen internet) word
+gestuur sodra die verbinding terug is:
 
-* `status=up`, "Hoofstroom (Ethernet)" — alles normaal
-* `status=down`, "Noodmusiek (Ethernet)" — op plaaslike musiek, geen stroom bereikbaar nie
-* `status=down`, "Hoofstroom (Modem)" — internet via die bekabelde verbinding af, op die LTE-modem
-* `status=down`, "Rugsteun-stroom (...)" — hoofstroom af, op die rugsteun-stroom
+* Netwerk: oorgeskakel na die modem / terug op Ethernet, plus 'n herinnering elke
+  `NOTIFY_MODEM_REMINDER` minute (verstek 60, 0 = af) solank dit op die modem bly
+* Bron: rugsteun-stroom, noodmusiek, terug op die hoofstroom
+* Radio-diens af / loop weer
+* Diens begin (bv. ná 'n herlaai)
 
-Kuma stuur dan self 'n kennisgewing net wanneer iets van die norm afwyk, nie by elke
-gewone ping nie. Die geskeduleerde-herbegin-funksie (indien aktief) gebruik dieselfde
-URL vir sy eie sukses/mislukking-boodskappe.
+Instellings: `NTFY_URL` (volle topic-URL; leeg = af), `NTFY_TOKEN` (opsioneel, vir 'n
+beskermde topic), `NOTIFY_MODEM_REMINDER` — almal via `radioctl set` of die
+INSTELLINGS-oortjie. Toets met `radioctl test-notify`.
+
+Die masjien self (aanlyn/af, CPU, geheue, skyf, temperatuur) word deur **Beszel**
+dopgehou, apart van hierdie installer opgestel — Beszel se "af"-waarskuwing dek die
+geval waar die sender heeltemal stil raak.
 
 ---
 
@@ -138,8 +145,10 @@ radioctl datausage            Data-verbruik vandag/maand (vnstat)
 radioctl sysstats             CPU-las, geheue, skyfspasie, CPU-temperatuur
 radioctl set <S> <W>          Verander 'n instelling (STREAM_URL, BACKUP_STREAM_URL,
                               MUSIC_WEIGHT, SWEEPER_WEIGHT, ALSA_DEVICE, VOLUME,
-                              AUDIO_PORT, STATION_NAME, HEARTBEAT_URL,
-                              STREAM_BUFFER_MAX, SILENCE_THRESHOLD, PRIMARY_SOURCE)
+                              AUDIO_PORT, STATION_NAME, STREAM_BUFFER_MAX,
+                              SILENCE_THRESHOLD, PRIMARY_SOURCE, PRIMARY_NETWORK,
+                              NETWORK_FAILOVER_DELAY, NTFY_URL, NTFY_TOKEN,
+                              NOTIFY_MODEM_REMINDER)
 radioctl audio-ports           Lys elke aux-uitsetpoort met volume, demp en jack-status
 radioctl passwords            Al die gestoorde wagwoorde
 radioctl reconfigure          Loop die opstelling-assistent weer
@@ -150,7 +159,7 @@ Foutsimulasie (sien "Toets-oortjie" hieronder):
 radioctl test-source-status/-stop/-start <1|2>
 radioctl test-internet-status/-block/-restore
 radioctl test-service-crash
-radioctl test-heartbeat
+radioctl test-notify
 radioctl test-soundcard
 ```
 
@@ -187,7 +196,7 @@ Genommer per oortjie, herbegin by 1 — tik die nommer, druk Enter (sien `docs/a
 
 * **BEHEER** (verstek) — Begin, Stop, Herbegin, Monitor aan/af
 * **INLIGTING** — stelsel-syfers (buffer, data, CPU, geheue, temperatuur), Logs, Media
-* **INSTELLINGS** — stroom URL's, stasienaam, ALSA-toestel, musiek/sweeper-verhouding, Heartbeat URL, stroom-buffer
+* **INSTELLINGS** — stroom URL's, stasienaam, ALSA-toestel, musiek/sweeper-verhouding, kennisgewings (ntfy), stroom-buffer
 * **ONDERHOUD** — Rugsteun, sagteware-opdatering, herkonfigurasie, kleurskema
 * **GEVAARLIK** — wagwoorde wys, alles verwyder
 * **TOETS** — foutsimulasie (sien hieronder)
@@ -201,7 +210,7 @@ Elke toets is omkeerbaar en raak nooit meer as nodig nie:
 * **Bron 1/2: Simuleer wegval** — stop/begin die stroom se Liquidsoap-inset; forseer regte failover, plaaslik en omkeerbaar
 * **Internet: Simuleer verlies** — blokkeer nuwe uitgaande verkeer (`iptables`), laat bestaande koppelinge deur; outo-herstel na 60s
 * **Diens-crash toets** — SIGKILL die diens om `Restart=always` te toets (Y/N-bevestiging, veroorsaak regte onderbreking)
-* **Heartbeat-toets** — een oproep na `HEARTBEAT_URL`, wys slaag/faal
+* **Kennisgewing-toets** — stuur een toets-kennisgewing na `NTFY_URL`, wys slaag/faal
 * **Klankkaart-toets** — kort toon na die ALSA-toestel
 
 ---
@@ -220,7 +229,7 @@ Elke toets is omkeerbaar en raak nooit meer as nodig nie:
 sudo bash uninstall.sh
 ```
 
-Bied eers aan om media na `.tar.gz` te rugsteun. Verwyder Radio Orania-, File Browser- en heartbeat-dienste, outo-restart timer, `radioctl`/beheerpaneel-skerm, die `radio-admin`- en `radio-orania`-gebruikers, en alle data.
+Bied eers aan om media na `.tar.gz` te rugsteun. Verwyder Radio Orania-, File Browser- en kennisgewing-dienste, outo-restart timer, `radioctl`/beheerpaneel-skerm, die `radio-admin`- en `radio-orania`-gebruikers, en alle data.
 
 ---
 
@@ -228,7 +237,7 @@ Bied eers aan om media na `.tar.gz` te rugsteun. Verwyder Radio Orania-, File Br
 
 ### V1.0 — Voltooi
 
-Installer, Liquidsoap-integrasie, outomatiese failover/herstel, File Browser, heartbeat, validasie, uninstaller, onbevoorregte diens-gebruiker, `radioctl`, beheerpaneel-skerm, ShellCheck CI.
+Installer, Liquidsoap-integrasie, outomatiese failover/herstel, File Browser, ntfy-kennisgewings, validasie, uninstaller, onbevoorregte diens-gebruiker, `radioctl`, beheerpaneel-skerm, ShellCheck CI.
 
 ### Beplan vir V1.1
 

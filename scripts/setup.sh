@@ -51,6 +51,10 @@ validate_port() {
     [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
+validate_token() {
+    [[ "$1" =~ ^[A-Za-z0-9_-]+$ ]]
+}
+
 validate_positive_int() {
     [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ]
 }
@@ -246,24 +250,56 @@ while true; do
 done
 
 #
-# Heartbeat
+# Kennisgewings (ntfy)
 #
 
 echo
-echo "Uptime Kuma (of soortgelyke) push-URL - stuur elke 5s 'n status-opdatering"
-echo "('n Kuma-\"push\"-monitor se URL, gewoonlik .../api/push/<token>)."
+echo "ntfy-kennisgewings - netwerk-/bron-oorskakeling en radio-diens af"
+echo "(volle topic-URL, bv. https://ntfy.sh/radio-orania-xyz). Laat leeg om af te skakel."
 
 while true; do
 
-    read -rp "Heartbeat/Status Push URL (opsioneel): " HEARTBEAT_URL
+    read -rp "ntfy topic-URL (opsioneel): " NTFY_URL
 
-    if [ -z "$HEARTBEAT_URL" ] || validate_url "$HEARTBEAT_URL"; then
+    if [ -z "$NTFY_URL" ] || validate_url "$NTFY_URL"; then
         break
     fi
 
     echo "URL moet met http:// of https:// begin en geen aanhalingstekens bevat nie."
 
 done
+
+NTFY_TOKEN=""
+NOTIFY_MODEM_REMINDER="60"
+
+if [ -n "$NTFY_URL" ]; then
+
+    while true; do
+
+        read -rp "ntfy toegangs-token (opsioneel, net vir 'n beskermde topic): " NTFY_TOKEN
+
+        if [ -z "$NTFY_TOKEN" ] || validate_token "$NTFY_TOKEN"; then
+            break
+        fi
+
+        echo "Token mag net letters, syfers, _ en - bevat."
+
+    done
+
+    while true; do
+
+        read -rp "Herinner elke hoeveel minute solank op die modem (0 = af) [60]: " NOTIFY_MODEM_REMINDER
+        NOTIFY_MODEM_REMINDER=${NOTIFY_MODEM_REMINDER:-60}
+
+        if [[ "$NOTIFY_MODEM_REMINDER" =~ ^[0-9]+$ ]]; then
+            break
+        fi
+
+        echo "Moet 'n heelgetal wees (0 of meer)."
+
+    done
+
+fi
 
 #
 # File Browser
@@ -428,10 +464,11 @@ echo "ALSA Device      : $ALSA_DEVICE"
 echo "Stroom-buffer    : ${STREAM_BUFFER_MAX}s"
 echo "Stilte-drempel   : ${SILENCE_THRESHOLD}s"
 
-if [ -n "$HEARTBEAT_URL" ]; then
-    echo "Heartbeat URL    : $HEARTBEAT_URL"
+if [ -n "$NTFY_URL" ]; then
+    echo "ntfy URL         : $NTFY_URL"
+    echo "Modem-herinnering: ${NOTIFY_MODEM_REMINDER} min"
 else
-    echo "Heartbeat URL    : Nie ingestel"
+    echo "ntfy URL         : Nie ingestel"
 fi
 
 if [ "$INSTALL_FILEBROWSER" = "yes" ]; then
@@ -512,7 +549,9 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' PLAYLIST_RELOAD "$PLAYLIST_RELOAD"
     printf '%s=%q\n' PLAYLIST_PREFETCH "$PLAYLIST_PREFETCH"
     echo
-    printf '%s=%q\n' HEARTBEAT_URL "$HEARTBEAT_URL"
+    printf '%s=%q\n' NTFY_URL "$NTFY_URL"
+    printf '%s=%q\n' NTFY_TOKEN "$NTFY_TOKEN"
+    printf '%s=%q\n' NOTIFY_MODEM_REMINDER "$NOTIFY_MODEM_REMINDER"
     echo
     printf '%s=%q\n' INSTALL_FILEBROWSER "$INSTALL_FILEBROWSER"
     echo

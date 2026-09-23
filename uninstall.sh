@@ -80,7 +80,13 @@ echo ">>> Verwyder monitoring"
 systemctl stop radio-heartbeat.service 2>/dev/null || true
 systemctl disable radio-heartbeat.service 2>/dev/null || true
 
+# Ou Uptime Kuma-heartbeat (vervang deur ntfy) - vir ouer installasies
 rm -f /etc/systemd/system/radio-heartbeat.service
+
+systemctl stop radio-notify.service 2>/dev/null || true
+systemctl disable radio-notify.service 2>/dev/null || true
+
+rm -f /etc/systemd/system/radio-notify.service
 
 echo
 echo ">>> Verwyder restart timer"

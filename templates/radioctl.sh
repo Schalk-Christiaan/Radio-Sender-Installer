@@ -112,7 +112,7 @@ cmd_status() {
 
     echo
 
-    for svc in radio-orania.service filebrowser.service radio-heartbeat.service radio-orania-restart.timer radio-network-watchdog.service; do
+    for svc in radio-orania.service filebrowser.service radio-notify.service radio-orania-restart.timer radio-network-watchdog.service; do
         if [ -f "/etc/systemd/system/$svc" ]; then
             if systemctl is-active --quiet "$svc" 2>/dev/null; then
                 printf "%-28s %s\n" "$svc" "${green}loop${reset}"
@@ -486,20 +486,24 @@ cmd_test_service_crash() {
     echo "Diens doodgemaak - wag ~5s vir outo-herstel (Restart=always)."
 }
 
-cmd_test_heartbeat() {
+cmd_test_notify() {
     load_config
 
-    if [ -z "${HEARTBEAT_URL:-}" ]; then
-        echo "Heartbeat-toets: geen HEARTBEAT_URL ingestel nie."
+    if [ -z "${NTFY_URL:-}" ]; then
+        echo "Kennisgewing-toets: geen NTFY_URL ingestel nie."
         exit 1
     fi
 
-    local base_url="${HEARTBEAT_URL%%\?*}"
+    local args=(-fsS --max-time 10 -o /dev/null
+        -H "Title: ${STATION_NAME:-Radio Orania}"
+        -H "Tags: test_tube"
+        -d "Toets-kennisgewing vanaf die sender.")
+    [ -n "${NTFY_TOKEN:-}" ] && args+=(-H "Authorization: Bearer $NTFY_TOKEN")
 
-    if curl -fsS --max-time 10 -o /dev/null "${base_url}?status=up&msg=Handmatige%20toets&ping="; then
-        echo "Heartbeat-toets: geslaag."
+    if curl "${args[@]}" "$NTFY_URL"; then
+        echo "Kennisgewing-toets: gestuur."
     else
-        echo "Heartbeat-toets: misluk."
+        echo "Kennisgewing-toets: misluk."
         exit 1
     fi
 }
@@ -614,7 +618,7 @@ cmd_audio_ports() {
     done < <(amixer -c "$card" scontrols 2>/dev/null | sed -n "s/.*'\(.*\)',.*/\1/p")
 }
 
-SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME HEARTBEAT_URL STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE PRIMARY_NETWORK NETWORK_FAILOVER_DELAY"
+SETTABLE_KEYS="STREAM_URL BACKUP_STREAM_URL MUSIC_WEIGHT SWEEPER_WEIGHT ALSA_DEVICE VOLUME AUDIO_PORT STATION_NAME STREAM_BUFFER_MAX SILENCE_THRESHOLD PRIMARY_SOURCE PRIMARY_NETWORK NETWORK_FAILOVER_DELAY NTFY_URL NTFY_TOKEN NOTIFY_MODEM_REMINDER"
 
 with_installer_config() {
     # persist_installer.sh verwyder doelbewus die installer se eie
@@ -652,7 +656,7 @@ cmd_set() {
                 exit 1
             }
             ;;
-        BACKUP_STREAM_URL|HEARTBEAT_URL)
+        BACKUP_STREAM_URL|NTFY_URL)
             if [ -n "$value" ] && ! is_valid_url "$value"; then
                 echo "Ongeldige URL. Moet met http:// of https:// begin, geen aanhalingstekens/spasies nie."
                 echo "(Laat leeg - 'radioctl set $key \"\"' - om dit af te skakel.)"
@@ -723,6 +727,18 @@ cmd_set() {
         NETWORK_FAILOVER_DELAY)
             if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ]; then
                 echo "Moet 'n positiewe heelgetal (sekondes) wees."
+                exit 1
+            fi
+            ;;
+        NTFY_TOKEN)
+            if [ -n "$value" ] && ! [[ "$value" =~ ^[A-Za-z0-9_-]+$ ]]; then
+                echo "Token mag net letters, syfers, _ en - bevat (laat leeg om af te skakel)."
+                exit 1
+            fi
+            ;;
+        NOTIFY_MODEM_REMINDER)
+            if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+                echo "Moet 'n heelgetal (minute) wees; 0 skakel die herinnering af."
                 exit 1
             fi
             ;;
@@ -802,18 +818,11 @@ cmd_set() {
                 exit 1
             fi
             ;;
-        HEARTBEAT_URL)
-            if [ ! -f "$INSTALLER_DIR/scripts/monitoring.sh" ]; then
+        NTFY_URL|NTFY_TOKEN|NOTIFY_MODEM_REMINDER)
+            if [ ! -f "$INSTALLER_DIR/scripts/notify.sh" ]; then
                 echo "$key gestoor, maar kon nie outomaties toegepas word nie (installer ontbreek)."
-            elif with_installer_config bash "$INSTALLER_DIR/scripts/monitoring.sh" >/dev/null; then
-                # Die geskeduleerde-herbegin se eie push-boodskappe
-                # gebruik dieselfde HEARTBEAT_URL, ingebak in
-                # restart-radio.sh by installasie - herskep dit ook,
-                # anders bly dit die ou URL gebruik.
-                if [ "${INSTALL_RESTART_TIMER:-no}" = "yes" ] && [ -f "$INSTALLER_DIR/scripts/restarttimer.sh" ]; then
-                    with_installer_config bash "$INSTALLER_DIR/scripts/restarttimer.sh" >/dev/null || true
-                fi
-                echo "$key opgedateer na '$value' en toegepas."
+            elif with_installer_config bash "$INSTALLER_DIR/scripts/notify.sh" >/dev/null; then
+                echo "$key opgedateer en toegepas."
             else
                 echo "$key gestoor, maar kon nie toegepas word nie."
                 exit 1
@@ -919,7 +928,7 @@ Gebruik: radioctl <opdrag>
   test-internet-block        Blokkeer alle nuwe uitgaande verkeer (60s outo-herstel)
   test-internet-restore      Herstel internet dadelik
   test-service-crash         Maak radio-orania.service dood (toets outo-herstel)
-  test-heartbeat             Stuur een heartbeat-oproep en wys slaag/faal
+  test-notify                Stuur een toets-kennisgewing na ntfy
   test-soundcard             Speel 'n toets-toon na die ALSA-toestel
 EOF
 }
@@ -952,7 +961,7 @@ case "${1:-}" in
     test-internet-block)   cmd_test_internet_block ;;
     test-internet-restore) cmd_test_internet_restore ;;
     test-service-crash)    cmd_test_service_crash ;;
-    test-heartbeat)        cmd_test_heartbeat ;;
+    test-notify)           cmd_test_notify ;;
     test-soundcard)        cmd_test_soundcard ;;
     ""|-h|--help|help) usage ;;
     *)

@@ -490,8 +490,8 @@ handle_instellings_item() {
             STATUS_MSG=$(sudo radioctl set ALSA_DEVICE "$val" 2>&1)
             ;;
         6)
-            inline_prompt "Heartbeat URL (leeg om af te skakel): " val
-            STATUS_MSG=$(sudo radioctl set HEARTBEAT_URL "$val" 2>&1)
+            inline_prompt "ntfy topic-URL (leeg om af te skakel): " val
+            STATUS_MSG=$(sudo radioctl set NTFY_URL "$val" 2>&1)
             ;;
         7)
             inline_prompt "Maksimum stroom-buffer in sekondes: " val
@@ -516,6 +516,14 @@ handle_instellings_item() {
         12)
             inline_prompt "Netwerk-oorskakel-tydperk in sekondes: " val
             STATUS_MSG=$(sudo radioctl set NETWORK_FAILOVER_DELAY "$val" 2>&1)
+            ;;
+        13)
+            inline_prompt "ntfy toegangs-token (leeg vir geen): " val
+            STATUS_MSG=$(sudo radioctl set NTFY_TOKEN "$val" 2>&1)
+            ;;
+        14)
+            inline_prompt "Modem-herinnering elke hoeveel minute (0 = af): " val
+            STATUS_MSG=$(sudo radioctl set NOTIFY_MODEM_REMINDER "$val" 2>&1)
             ;;
         "")
             STATUS_MSG=""
@@ -628,7 +636,7 @@ handle_gevaarlik_item() {
 }
 
 # --- TOETS-oortjie: 1) Bron 1 2) Bron 2 3) Internet 4) Diens-crash
-#     5) Heartbeat 6) Klankkaart -----------------------------------------
+#     5) Kennisgewing 6) Klankkaart -----------------------------------------
 #
 # 1-3 is wissel-opsies (loop/gestop, of normaal/geblokkeer) - die huidige
 # toestand word ELKE keer eers by radioctl bevraagteken (nie plaaslik
@@ -671,7 +679,7 @@ handle_toets_item() {
             fi
             ;;
         5)
-            STATUS_MSG=$(sudo radioctl test-heartbeat 2>&1)
+            STATUS_MSG=$(sudo radioctl test-notify 2>&1)
             ;;
         6)
             STATUS_MSG=$(sudo radioctl test-soundcard 2>&1)
@@ -953,10 +961,11 @@ draw_instellings_tab() {
     local items=(
         "1) Stroom URL (primêr)" "2) Rugsteun-stroom URL"
         "3) Musiek/sweeper-verhouding" "4) Stasienaam"
-        "5) ALSA-klanktoestel" "6) Heartbeat URL"
+        "5) ALSA-klanktoestel" "6) Kennisgewings (ntfy URL)"
         "7) Maksimum stroom-buffer" "8) Primêre bron"
         "9) Volume" "10) Stilte-drempel"
         "11) Primêre netwerk" "12) Netwerk-oorskakel-tyd"
+        "13) ntfy-token" "14) Modem-herinnering"
     )
     print_command_grid items items "$sep_width"
 }
@@ -1004,12 +1013,12 @@ draw_toets_tab() {
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
     local items_plain=(
         "$p1" "$p2" "$p3"
-        "4) Diens-crash toets" "5) Heartbeat-toets nou" "6) Klankkaart-toets"
+        "4) Diens-crash toets" "5) Kennisgewing-toets" "6) Klankkaart-toets"
     )
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in print_command_grid
     local items_colored=(
         "$c1" "$c2" "$c3"
-        "4) Diens-crash toets" "5) Heartbeat-toets nou" "6) Klankkaart-toets"
+        "4) Diens-crash toets" "5) Kennisgewing-toets" "6) Klankkaart-toets"
     )
     print_command_grid items_plain items_colored "$sep_width"
 

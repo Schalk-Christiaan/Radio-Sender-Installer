@@ -17,36 +17,22 @@ cat > "$HELPER_FILE" << EOF
 #!/bin/bash
 set -e
 
-PUSH_URL=$(printf '%q' "$HEARTBEAT_URL")
-BASE_PUSH_URL="\${PUSH_URL%%\?*}"
+# Geen eie kennisgewing nie - radio-notify (ntfy) merk self wanneer
+# die radio-diens langer as 'n halwe minuut af bly.
 SERVICE_NAME="radio-orania.service"
 MAX_WAIT=60
 
-curl_push() {
-    local status="\$1"
-    local message="\$2"
-
-    if [ -n "\$BASE_PUSH_URL" ]; then
-        curl -fsS "\${BASE_PUSH_URL}?status=\${status}&msg=\${message}&ping=" >/dev/null 2>&1 || true
-    fi
-}
-
-if ! systemctl restart "\$SERVICE_NAME"; then
-    curl_push "down" "Radio%20restart%20failed"
-    exit 1
-fi
+systemctl restart "\$SERVICE_NAME"
 
 elapsed=0
 while [ "\$elapsed" -lt "\$MAX_WAIT" ]; do
     if systemctl is-active --quiet "\$SERVICE_NAME"; then
-        curl_push "up" "Radio%20restarted"
         exit 0
     fi
     sleep 2
     elapsed=\$((elapsed + 2))
 done
 
-curl_push "down" "Radio%20did%20not%20become%20active"
 exit 1
 EOF
 

@@ -200,34 +200,28 @@ else
 fi
 
 #
-# Heartbeat
+# Kennisgewings (ntfy)
 #
 
-if [ -n "$HEARTBEAT_URL" ]; then
+if [ -n "${NTFY_URL:-}" ]; then
 
-    ok "Heartbeat URL ingestel"
+    ok "ntfy URL ingestel"
 
-    if [ -x /opt/radio-orania/monitoring/heartbeat.sh ]; then
-        ok "Heartbeat script gevind"
+    if [ -x /opt/radio-orania/monitoring/notify.sh ]; then
+        ok "Kennisgewing-script gevind"
     else
-        warn "Heartbeat script ontbreek"
+        warn "Kennisgewing-script ontbreek"
     fi
 
-    if systemctl list-unit-files | grep -q radio-heartbeat.service; then
-        ok "Heartbeat diens geïnstalleer"
+    if systemctl is-active radio-notify >/dev/null 2>&1; then
+        ok "Kennisgewing-diens loop"
     else
-        warn "Heartbeat diens ontbreek"
-    fi
-
-    if systemctl is-active radio-heartbeat >/dev/null 2>&1; then
-        ok "Heartbeat diens loop"
-    else
-        warn "Heartbeat diens loop nie"
+        warn "Kennisgewing-diens loop nie"
     fi
 
 else
 
-    warn "Heartbeat URL nie ingestel nie"
+    warn "ntfy URL nie ingestel nie (geen kennisgewings)"
 
 fi
 
