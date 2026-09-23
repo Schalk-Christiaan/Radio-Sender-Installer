@@ -68,30 +68,91 @@ get_connection_for_device() {
     nmcli -t -f DEVICE,CONNECTION device status 2>/dev/null | awk -F: -v dev="$1" '$1 == dev { print $2; exit }'
 }
 
-set_iface_metric() {
-    local iface="$1" metric="$2" gw existing_metrics m
+# Laaste bekende gateway per koppelvlak, bewaar op skyf sodat dit ook 'n
+# herbegin van die watchdog oorleef.
+GW_CACHE_DIR="/opt/radio-orania/network"
 
-    gw=$(ip route show default dev "$iface" 2>/dev/null | grep -oP '(?<=via )\S+' | head -1)
+# Soek 'n gateway vir die koppelvlak. Volgorde: die huidige
+# verstek-roete, dan die gesaghebbende bronne (NetworkManager vir die
+# modem; dhcpcd - Debian 13 se ifupdown - of ouer dhclient vir
+# ethernet; 'n statiese "gateway"-lyn in /etc/network/interfaces), en
+# eers heel laaste die gebergde laaste bekende waarde.
+# Sonder hierdie terugval het 'n roete wat een keer verlore geraak het
+# (bv. terwyl die kabel uit was) 'n "default dev X scope link"-roete
+# sonder gateway geword - wat op 'n gewone LAN nooit werk nie, sodat die
+# koppelvlak vir altyd as onbereikbaar getoets het.
+find_gateway() {
+    local iface="$1" gw cache="$GW_CACHE_DIR/gw_$1"
 
-    # "ip route replace" vervang net 'n roete met DIESELFDE metric - dit
-    # sou 'n bestaande (dalk laer) verstek-roete vir hierdie toestel NIE
-    # oorskryf nie, net 'n bykomende een langsaan skep, en die kern
-    # verkies steeds die laagste metric van die twee. Verwyder dus eers
-    # elke bestaande verstek-roete vir hierdie toestel, ongeag watter
-    # metric dit tans het.
-    existing_metrics=$(ip route show default dev "$iface" 2>/dev/null | grep -oP '(?<=metric )\d+')
-    for m in $existing_metrics; do
-        ip route del default dev "$iface" metric "$m" 2>/dev/null || true
-    done
-    # 'n verstek-roete heeltemal sonder 'n eksplisiete "metric"-woord
-    # dra intern metric 0 - probeer ook daardie vorm verwyder.
-    ip route del default dev "$iface" 2>/dev/null || true
+    gw=$(ip route show default dev "$iface" 2>/dev/null | grep -oP '(?<=via )[0-9.]+' | head -1)
+    if [ -z "$gw" ]; then
+        gw=$(nmcli -g IP4.GATEWAY device show "$iface" 2>/dev/null | grep -oP '^[0-9.]+$' | head -1)
+    fi
+    if [ -z "$gw" ] && command -v dhcpcd >/dev/null 2>&1; then
+        gw=$(dhcpcd -U "$iface" 2>/dev/null | grep -oP "^routers='?\K[0-9.]+" | head -1)
+    fi
+    if [ -z "$gw" ]; then
+        gw=$(grep -ohP '(?<=option routers )[0-9.]+' "/var/lib/dhcp/dhclient.$iface.leases" /var/lib/dhcp/dhclient.leases 2>/dev/null | tail -1)
+    fi
+    if [ -z "$gw" ]; then
+        gw=$(awk -v i="$iface" '$1 == "iface" { in_i = ($2 == i) } in_i && $1 == "gateway" { print $2; exit }' \
+            /etc/network/interfaces /etc/network/interfaces.d/* 2>/dev/null)
+    fi
 
     if [ -n "$gw" ]; then
-        ip route replace default via "$gw" dev "$iface" metric "$metric" 2>/dev/null
+        if [ "$(cat "$cache" 2>/dev/null)" != "$gw" ]; then
+            mkdir -p "$GW_CACHE_DIR"
+            printf '%s' "$gw" > "$cache"
+        fi
     else
-        ip route replace default dev "$iface" metric "$metric" 2>/dev/null
+        gw=$(cat "$cache" 2>/dev/null)
     fi
+    echo "$gw"
+}
+
+set_iface_metric() {
+    local iface="$1" metric="$2" gw routes line m
+
+    gw=$(find_gateway "$iface")
+
+    # Geen gateway bekend nie en die koppelvlak is nie punt-tot-punt
+    # (ppp/wwan) nie: 'n roete sonder gateway sal nie werk nie - los die
+    # roetes van hierdie koppelvlak eerder heeltemal uit.
+    if [ -z "$gw" ] && ! ip link show "$iface" 2>/dev/null | grep -q POINTOPOINT; then
+        return 0
+    fi
+
+    routes=$(ip route show default dev "$iface" 2>/dev/null)
+
+    # Reeds presies reg (een roete, regte gateway en metric): raak niks.
+    if [ "$(printf '%s\n' "$routes" | grep -c .)" = 1 ] &&
+       printf '%s' "$routes" | grep -qE "metric $metric( |\$)" &&
+       { [ -z "$gw" ] || printf '%s' "$routes" | grep -q "via $gw "; }; then
+        return 0
+    fi
+
+    # Voeg EERS die nuwe roete by en verwyder eers daarna die ou ene -
+    # die omgekeerde volgorde het 'n gaping gelaat, en as die byvoeging
+    # misluk het (bv. skakel af) was die koppelvlak heeltemal sonder roete.
+    # "replace" vervang 'n bestaande roete met DIESELFDE metric (ook 'n
+    # stukkende een sonder gateway).
+    if [ -n "$gw" ]; then
+        ip route replace default via "$gw" dev "$iface" metric "$metric" 2>/dev/null || return 0
+    else
+        ip route replace default dev "$iface" metric "$metric" 2>/dev/null || return 0
+    fi
+
+    # Verwyder elke ander verstek-roete vir hierdie toestel (ander
+    # metric; 'n roete sonder "metric"-woord dra intern metric 0). Altyd
+    # met 'n eksplisiete metric - sonder een sou "ip route del" dalk die
+    # nuwe roete self tref.
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        m=$(printf '%s' "$line" | grep -oP '(?<=metric )\d+')
+        m="${m:-0}"
+        [ "$m" = "$metric" ] && continue
+        ip route del default dev "$iface" metric "$m" 2>/dev/null || true
+    done <<< "$routes"
 }
 
 # Die bekabelde koppelvlak (ifupdown) is altyd reeds opgestel en
