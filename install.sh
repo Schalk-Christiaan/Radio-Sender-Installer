@@ -125,6 +125,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
+# Altyd na /opt ontplooi (radioctl lees dit daar), ook as die opstelling
+# oorgeslaan is - bv. herinstallasie met 'n bewaarde konfigurasie.
+install -D -m 600 "$CONFIG_FILE" "$DEPLOYED_CONFIG"
+
 # Lees konfigurasie
 # shellcheck disable=SC1090
 source "$CONFIG_FILE"

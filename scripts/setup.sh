@@ -593,7 +593,6 @@ fi
 #
 
 mkdir -p "$CONFIG_DIR"
-mkdir -p /opt/radio-orania/config
 
 #
 # Interne waardes
@@ -647,10 +646,6 @@ PLAYLIST_PREFETCH="10"
     printf '%s=%q\n' PRIMARY_NETWORK "$PRIMARY_NETWORK"
     printf '%s=%q\n' NETWORK_FAILOVER_DELAY "$NETWORK_FAILOVER_DELAY"
 } > "$CONFIG_DIR/environment.conf"
-
-install -m 600 \
-    "$CONFIG_DIR/environment.conf" \
-    /opt/radio-orania/config/environment.conf
 
 echo
 ui_ok "Konfigurasie gestoor: $CONFIG_DIR/environment.conf"
