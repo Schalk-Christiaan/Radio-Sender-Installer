@@ -22,6 +22,13 @@ progress() {
     echo
     printf "   [%s] %3d%% %s\n" "$bar" "$percent" "$message"
 
+    # Onder install.sh se spinner (ui.sh se ui_spin): gee net die boodskap
+    # deur - die spinner teken self die balk op sy eie reël.
+    if [ -n "${PROGRESS_FILE:-}" ]; then
+        printf '%s|%s\n' "$percent" "$message" > "$PROGRESS_FILE" 2>/dev/null || true
+        return 0
+    fi
+
     # Geanimeerde weergawe: geskryf direk na die beheerterminaal (indien een
     # bestaan) en oorskryf homself op dieselfde reël, ongeag hoe install.sh
     # hierdie skrip se gewone uitset herlei of deur tee stuur.
@@ -47,7 +54,10 @@ progress() {
 # \n dwing 'n vars reël af, ongeag waar progress() se kursor-animasie
 # (\r...geen \n nie by <100%) die kursor laat staan het.
 to_screen() {
-    { printf '\n%s\n' "$1"; } 2>/dev/null > /dev/tty || true
+    # Onder die spinner: vee eers sy halwe reël uit.
+    local pre='\n'
+    [ -n "${PROGRESS_FILE:-}" ] && pre='\r\033[K'
+    { printf "$pre%s\n" "$1"; } 2>/dev/null > /dev/tty || true
 }
 
 # 'n Waarskuwing wat, soos progress() hierbo, altyd die skerm moet bereik -

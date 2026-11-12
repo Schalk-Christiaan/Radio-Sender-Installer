@@ -26,6 +26,8 @@ for arg in "$@"; do
     esac
 done
 
+source "$SCRIPT_DIR/scripts/ui.sh"
+
 LOG_FILE="$SCRIPT_DIR/installer.log"
 CONFIG_FILE="$SCRIPT_DIR/config/environment.conf"
 DEPLOYED_CONFIG="/opt/radio-orania/config/environment.conf"
@@ -36,35 +38,29 @@ run_step() {
     local script="$2"
     local status=0
 
-    echo
-    echo ">>> $label"
-
     set +e
 
     if [ "$VERBOSE" = true ]; then
+        echo
+        echo ">>> $label"
         bash "$script" 2>&1 | tee -a "$LOG_FILE"
         status=${PIPESTATUS[0]}
     else
-        bash "$script" >>"$LOG_FILE" 2>&1
+        ui_spin "$label" "$LOG_FILE" bash "$script"
         status=$?
     fi
 
     set -e
 
     if [ "$status" -ne 0 ]; then
-        echo
-        echo "FOUT: '$label' het misluk (kode $status)."
-        echo "Sien die log vir besonderhede: $LOG_FILE"
+        [ "$VERBOSE" = true ] && ui_fail "'$label' het misluk (kode $status)."
+        ui_hint "Volledige log: $LOG_FILE"
         exit "$status"
     fi
 
 }
 
-echo
-echo "=============================="
-echo " Radio Orania Sender Installer"
-echo "=============================="
-echo
+ui_banner "Sender-installeerder  ${UI_ARROW} internetstroom na FM, 24/7"
 
 if [ "$EUID" -ne 0 ]; then
     echo "Hierdie installer moet as root loop."
@@ -89,7 +85,7 @@ fi
 
 if [ "$DEBIAN_OK" = false ]; then
 
-    echo "WAARSKUWING: Hierdie installer is ontwerp vir Debian 13."
+    ui_warn "Hierdie installer is ontwerp vir Debian 13."
     echo "Bespeur: ${PRETTY_NAME:-onbekend}"
     echo
 
@@ -109,17 +105,17 @@ fi
 
 if [ -f "$CONFIG_FILE" ]; then
 
-    echo "Bestaande konfigurasie gevind."
+    ui_ok "Bestaande konfigurasie gevind."
 
-    read -p "Herkonfigureer? (Y/N): " RECONFIGURE
+    read -rp "$(ui_q "Herkonfigureer? (Y/N)" "N")" RECONFIGURE
 
     if [[ "$RECONFIGURE" =~ ^[Yy]$ ]]; then
-        bash "$SCRIPT_DIR/scripts/setup.sh"
+        UI_NO_BANNER=1 bash "$SCRIPT_DIR/scripts/setup.sh"
     fi
 
 else
 
-    bash "$SCRIPT_DIR/scripts/setup.sh"
+    UI_NO_BANNER=1 bash "$SCRIPT_DIR/scripts/setup.sh"
 
 fi
 
@@ -134,6 +130,9 @@ fi
 source "$CONFIG_FILE"
 
 # Installasie
+ui_section "Installeer"
+INSTALL_T0=$SECONDS
+
 run_step "Installeer afhanklikhede" "$SCRIPT_DIR/scripts/dependencies.sh"
 
 run_step "Skep diens-gebruiker" "$SCRIPT_DIR/scripts/user.sh"
@@ -182,15 +181,23 @@ run_step "Valideer installasie" "$SCRIPT_DIR/scripts/validation.sh"
 # lêer (soos die File Browser-binêre) kan korrupteer nie.
 sync
 
-echo
-echo "==================="
-echo "Installasie voltooi"
-echo "==================="
+MINS=$(( (SECONDS - INSTALL_T0) / 60 ))
+SECS=$(( (SECONDS - INSTALL_T0) % 60 ))
+IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
 echo
-echo "Log lêer:"
-echo "$LOG_FILE"
+printf '  %s%s Installasie voltooi%s %s(%dm %02ds)%s\n\n' "$C_OK$C_B" "$UI_OK" "$C_0" "$C_DIM" "$MINS" "$SECS" "$C_0"
 
+ui_kv "Status" "radioctl status"
+ui_kv "Alle opdragte" "radioctl"
+
+if [ "$INSTALL_DASHBOARD" = "yes" ]; then
+    ui_kv "Beheerpaneel" "radioctl dash  (of teken in as radio-admin)"
+fi
+
+if [ "$INSTALL_FILEBROWSER" = "yes" ] && [ -n "$IP" ]; then
+    ui_kv "File Browser" "http://$IP:$FILEBROWSER_PORT"
+fi
+
+ui_kv "Log" "$LOG_FILE"
 echo
-echo "Gebruik 'radioctl status' om die sender se status te sien,"
-echo "of 'radioctl' vir 'n lys van alle beskikbare opdragte."

@@ -20,34 +20,56 @@
 
 ## Hoe dit Werk
 
-```text
-              Hoofstroom  →  Rugsteun-stroom  →  Musiek + Sweepers
-             (opsioneel af/stil)  (opsioneel af/stil)
-                           │
-                           ▼
-                 Skok-buffer (begrens vertraging)
-                           │
-                           ▼
-                      Liquidsoap
-                           │
-                           ▼
-              Klankvlak-egalisering (normalize)
-                           │
-                           ▼
-                        ALSA
-                           │
-                           ▼
-                       Klankkaart
-                           │
-                           ▼
-                     FM Sender
+```mermaid
+flowchart TD
+    subgraph INTERNET["Internet (ethernet, of 4G-modem as rugsteun)"]
+        H["Hoofstroom"]
+        R["Rugsteun-stroom<br/>(opsioneel)"]
+    end
+
+    H --> BH["Skok-buffer<br/>vul 10s vooraf, maks 20s,<br/>spoed hoogstens ±1%"]
+    R --> BR["Skok-buffer"]
+    BH --> SH["Stilte-wag<br/>stilte langer as 20s = bron weg"]
+    BR --> SR["Stilte-wag"]
+
+    M["Musiek + Sweepers<br/>(plaaslike vouers)"] --> N["Noodmusiek"]
+    NK["Ingeboude noodklank<br/>(as die vouers leeg is)"] -.-> N
+
+    SH --> SW{"Skakelaar<br/>eerste beskikbare wen,<br/>2s oorvloei"}
+    SR --> SW
+    N --> SW
+    OV["radioctl / beheerpaneel<br/>(dwing 'n bron)"] -.-> SW
+
+    SW --> NORM["Klankvlak-egalisering"]
+    NORM --> ALSA["ALSA → klankkaart → FM-sender"]
+    NORM --> ICE["Icecast /monitor<br/>(luister via netwerk)"]
+    SW -.-> AS["active_source-lêer<br/>→ status, beheerpaneel, ntfy"]
+```
+
+Volgorde by die skakelaar: hoofstroom, dan rugsteun-stroom, dan noodmusiek (of andersom as die rugsteun as primêr gekies is). Sodra 'n hoër bron weer stabiel is, skakel dit outomaties terug.
+
+Elke bron word deurlopend vir stilte gemonitor: "dooie lug" (bv. 'n koderfout) veroorsaak dieselfde oorskakeling as 'n regte ontkoppeling. Kort pouses in praatprogramme (onder die stilte-drempel) bly op die lug. `radioctl status` en die beheerpaneel-skerm wys watter bron werklik op die lug is.
+
+Agter die skerms:
+
+```mermaid
+flowchart LR
+    RO["radio-orania.service<br/>(Liquidsoap, gebruiker radio-orania)"]
+    NW["radio-network-watchdog<br/>ethernet ↔ modem"]
+    NT["radio-notify<br/>ntfy-kennisgewings"]
+    TM["Herbegin-timer<br/>(daagliks, opsioneel)"]
+    CTL["radioctl"] --> RO
+    DASH["Beheerpaneel (radio-admin, tty1)"] -->|sudo| CTL
+    NW -.->|internet| RO
+    RO -->|active_source| NT
+    TM --> RO
 ```
 
 Elke bron word deurlopend vir stilte gemonitor — "dooie lug" (bv. 'n koderfout) veroorsaak dieselfde outomatiese oorskakeling as 'n regte ontkoppeling. `radioctl status` en die beheerpaneel-skerm wys watter bron werklik op-lug is.
 
 ### Waarom FM-vertraging oor tyd kan opbou
 
-Netwerkstroom en klankkaart loop nie op dieselfde klok nie — 'n klein verskil bou oor ure/dae op tot 'n merkbare FM-vertraging (herbegin stel dit weer op nul). 'n Begrensde skok-buffer ("Maksimum stroom-buffer", instelbaar via Instellings of `radioctl set STREAM_BUFFER_MAX <sekondes>`) laat Liquidsoap outomaties 'n bietjie oudio val sodra die maksimum oorskry word, i.p.v. onbeperk op te bou.
+Netwerkstroom en klankkaart loop nie op dieselfde klok nie — 'n klein verskil bou oor ure/dae op tot 'n merkbare FM-vertraging (herbegin stel dit weer op nul). 'n Begrensde skok-buffer ("Maksimum stroom-buffer", instelbaar via Instellings of `radioctl set STREAM_BUFFER_MAX <sekondes>`) laat Liquidsoap die spoed met hoogstens 1% aanpas (onhoorbaar, toonhoogte bly dieselfde vir die oor) en net as dit nie genoeg is nie 'n bietjie oudio val sodra die maksimum oorskry word, i.p.v. onbeperk op te bou.
 
 ---
 

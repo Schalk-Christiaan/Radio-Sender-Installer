@@ -51,11 +51,14 @@ file.write(
 # breek die stilte-telling dadelik weer af, so 'n regte, kort stiltetjie
 # tussen sinne by die bron self veroorsaak nie per ongeluk 'n wissel nie.
 #
-# buffer() met 'n begrensde max= voorkom dat 'n klein klok-verskil tussen
-# die netwerkstroom en die klankkaart oor ure/dae onbeperk opbou tot 'n
-# merkbare FM-vertraging - sodra die buffer die maksimum oorskry, laat
-# Liquidsoap outomaties 'n bietjie oudio val om weer by te kom, i.p.v. dat
-# net 'n herbegin van die rekenaar dit regstel.
+# buffer.adaptative() i.p.v. buffer(): die bron se enkodeerder en die
+# klankkaart loop nooit presies teen dieselfde tempo nie. Die gewone
+# buffer() het daardie klok-verskil hanteer deur by oorloop 'n stuk oudio
+# te laat val (en by leegloop kortliks na noodmusiek te wissel) - albei
+# hoorbaar as 'n "spring" in die klank. buffer.adaptative() versnel/vertraag
+# die afspeel onhoorbaar min sodat die buffervlak konstant bly. max= begrens
+# steeds die vertraging, sodat dit nie oor dae tot 'n merkbare FM-vertraging
+# opbou nie.
 
 # radio.is_ready() (op die buffer()/blank.strip() hieronder) bly
 # "gereed" lank nadat die netwerk werklik af is - dit reflekteer net of
@@ -70,10 +73,29 @@ file.write(
 radio_connected = ref(false)
 
 radio =
-  buffer(
-    max=stream_buffer_max,
-    blank.strip(
-      max_blank=silence_threshold,
+  # blank.strip BUITE die buffer: dis 'n aktiewe operator wat die buffer
+  # aanhou leeg lees, ook terwyl dit stilte wegsny. Binne die buffer het 'n
+  # stilte by die bron die buffer laat leegloop, sodat elke stilte ook 'n
+  # buffer-leegloop (en 'n hervul-wag) geword het.
+  blank.strip(
+    max_blank=silence_threshold,
+    buffer.adaptative(
+      # fallible: bron mag afgaan (dan wissel switch() oor); reset: begin na
+      # elke herkoppeling weer by normale spoed i.p.v. die ou skatting.
+      fallible=true,
+      reset=true,
+      # Vul eers die helfte van die maksimum voor dit (weer) speel: 'n kort
+      # netwerk-hik word dan uit die buffer oorbrug i.p.v. 'n wissel na
+      # noodmusiek, en na 'n leegloop flikker dit nie elke 2s heen en weer
+      # terwyl die verbinding nog sukkel nie (getoets met 3s-onderbrekings
+      # en bandwydte onder die stroom se bitkoers).
+      buffer=stream_buffer_max / 2.,
+      # Spoed-aanpassing hoogstens 1% (verstek 25% - hoorbaar as toonhoogte
+      # wat skuif). Klok-drywing tussen bron en klankkaart is ~0.01-0.05%,
+      # so 1% is ruim; averaging=120 laat dit kalm i.p.v. ruk-ruk reageer.
+      limit=1.01,
+      averaging=120.,
+      max=stream_buffer_max,
       input.http(
         self_sync=false,
         id="radio_input",
@@ -214,29 +236,37 @@ thread.run.recurrent(delay=2.0, read_source_override)
 # 'n Skielike knip by elke bronwissel (bv. stroom -> musiek by 'n
 # ontkoppeling) klink self soos 'n hoorbare hik. crossfade() oorvloei
 # die uitgaande en inkomende bron oor 2 sekondes i.p.v. 'n skielike
-# knip. list.map() bou 'n oorvloei-funksie per inskrywing in
-# switch_sources hieronder, ongeag hoeveel takke daar (met/sonder
-# rugsteunstroom) werklik is - moet dus NIE self met die hand
-# opgedateer word as die predikate-lys groei/krimp nie.
+# knip.
 
 def crossfade(old, new) =
   add(normalize=false, [fade.out(duration=2.0, old), fade.in(duration=2.0, new)])
 end
 
+# Bronkeuse-lys: (naam, predikaat, bron). Die ENIGSTE plek waar bronkeuse
+# beskryf word - switch() hieronder en check_active_source() (wat die
+# dashboard/radioctl/notify se "Bron"-veld voed) word albei hieruit afgelei,
+# so die twee kan nie uit-pas raak nie. Die naam is wat na die
+# active_source-lêer geskryf word.
+
 switch_sources =
   [
-    ({source_override() == "primer" and radio_connected()}, radio),
-    ({source_override() == "noodmusiek"}, backup_program),
-    ({source_override() == "" and primary_source == "1" and radio_connected()}, radio),
+    ("primer", {source_override() == "primer" and radio_connected()}, radio),
+    ("noodmusiek", {source_override() == "noodmusiek"}, backup_program),
+    ("primer", {source_override() == "" and primary_source == "1" and radio_connected()}, radio),
 # __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__
-    ({true}, backup_program)
+    ("noodmusiek", {true}, backup_program)
   ]
+
+def switch_entry(entry) =
+  let (_, pred, src) = entry
+  (pred, src)
+end
 
 main =
   switch(
     track_sensitive=false,
-    transitions=list.map(fun (pair) -> crossfade, switch_sources),
-    switch_sources
+    transitions=list.map(fun (_) -> crossfade, switch_sources),
+    list.map(switch_entry, switch_sources)
   )
 
 # Klankvlak-egalisering, sodat die stroom en plaaslike musiek nie skielik
@@ -245,6 +275,10 @@ main =
 main = normalize(main)
 
 # ALSA uitset
+#
+# Die ALSA-uitset bepaal die klok van die hele hoofketting. Niks anders mag
+# dit ophou nie - die Icecast-monitor (indien geïnstalleer) loop daarom op
+# sy eie klok agter 'n buffer() (sien radio-icecast.liq).
 
 output.alsa(
   device=alsa_device,
@@ -253,27 +287,20 @@ output.alsa(
 
 # Aktiewe-bron opsporing
 #
-# Skryf elke 2 sekondes na 'n lêer watter bron werklik op-lug is, met
-# dieselfde volgorde-logika as die switch() hierbo - moet by enige
-# wysiging aan die switch()-predikate saam opgedateer word, anders raak
-# die status-kaart se "Bron"-veld uit-pas met wat werklik speel.
-# radioctl en die dashboard lees hierdie lêer om die aktiewe bron te
-# wys sonder om Liquidsoap self te moet bevraagteken.
+# Skryf elke 2 sekondes na 'n lêer watter bron werklik op-lug is: die
+# eerste inskrywing in switch_sources waarvan die predikaat waar is EN die
+# bron gereed is - presies wat switch() self doen. (Die is_ready()-toets is
+# nodig: tydens 'n buffer-leegloop speel switch() reeds noodmusiek terwyl
+# radio_connected() nog waar is.)
+
+def pick_active(acc, entry) =
+  let (name, pred, src) = entry
+  if acc == "" and pred() and src.is_ready() then name else acc end
+end
 
 def check_active_source()
-  active =
-    if source_override() == "primer" and radio_connected() then
-      "primer"
-    elsif source_override() == "noodmusiek" then
-      "noodmusiek"
-    elsif source_override() == "" and primary_source == "1" and radio_connected() then
-      "primer"
-# __ACTIVE_SOURCE_BACKUP_BRANCH__
-    else
-      "noodmusiek"
-    end
   file.write(
-    data=active,
+    data=list.fold(pick_active, "", switch_sources),
     atomic=true,
     temp_dir="/opt/radio-orania/liquidsoap",
     "/opt/radio-orania/liquidsoap/active_source"

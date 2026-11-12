@@ -43,7 +43,7 @@ sudo bash uninstall.sh
 `templates/` holds files that are copied to their install location and then edited in place with `sed`:
 
 - Simple value substitution: `__PLACEHOLDER__` tokens (e.g. `__STREAM_URL__`, `__ALSA_DEVICE__`, `__STATION_NAME__`) replaced via `sed -i "s|__X__|$value|g"` — always run replacement values through `escape_sed_replacement()` (escapes `&` and `|`) when they come from user config.
-- Conditional blocks: marker comment lines like `# __BACKUP_RADIO_INSERT_POINT__` and `# __ACTIVE_SOURCE_BACKUP_BRANCH__` in `templates/radio.liq` get another template file `sed -i "/marker/r other-file"`-inserted above them when a feature is enabled (e.g. a backup stream is configured), then the marker line itself is deleted. `scripts/liquidsoap.sh` is the reference implementation of this pattern.
+- Conditional blocks: marker comment lines like `# __BACKUP_RADIO_INSERT_POINT__` and `# __PRIMARY_SOURCE_SWITCH_BACKUP_BRANCH__` in `templates/radio.liq` get another template file `sed -i "/marker/r other-file"`-inserted above them when a feature is enabled (e.g. a backup stream is configured), then the marker line itself is deleted. `scripts/liquidsoap.sh` is the reference implementation of this pattern.
 - Some templates are appended conditionally instead (e.g. `radio-icecast.liq` + `radio-server-socket.liq` are `cat >>`'d onto `radio.liq` only `if [ "$INSTALL_DASHBOARD" = "yes" ]`).
 
 `templates/radioctl.sh` and `templates/radio-dashboard.sh` are the two templates that become long-lived executables (`/usr/local/bin/radioctl`, `/usr/local/bin/radio-dash`) rather than one-shot generated config — see below.

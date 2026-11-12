@@ -101,14 +101,38 @@ spinner_run() {
 # proses geskep om die klankvlak te meet, wat broos was (dikwels leeg)
 # en die teken-siklus onvoorspelbaar vertraag het. 'n Suiwer
 # string-opsoek loop altyd, is oombliklik, en skep nooit 'n subproses nie.
-WAVE_PATTERNS=(
-    "▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂"
-    "▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁"
-    "▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂"
-    "▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃"
-    "▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅"
-    "▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇"
-)
+# Glyph-stel - een keer gekies. Die fisiese konsole (tty1, TERM=linux)
+# se lettertipe het net 256/512 karakters: blok-elemente (▁▂▃▅▇),
+# geometriese vorms (●○◄►▶), ━, … en toilet se kwadrant-karakters
+# verskyn daar as ◆ of kolletjies. Ligte lyn-karakters (─│┌┐└┘) is wel in
+# elke konsole-lettertipe, so die kaarte bly soos hulle is. Nuwe UI moet
+# hierdie veranderlikes gebruik eerder as 'n letterlike Unicode-karakter
+# (net soos PRIMARY/SECONDARY vir kleur).
+if [ "${TERM:-}" = "linux" ]; then
+    CONSOLE_GLYPHS=true
+    G_ON="*"; G_OFF="o"; G_PLAY=">"; G_LEFT="<"; G_RIGHT=">"
+    G_HEAVY="="; G_ELLIPSIS="~"
+    WAVE_PATTERNS=(
+        "_.-=#=-._.-=#=-._.-=#=-."
+        ".-=#=-._.-=#=-._.-=#=-._"
+        "-=#=-._.-=#=-._.-=#=-._."
+        "=#=-._.-=#=-._.-=#=-._.-"
+        "#=-._.-=#=-._.-=#=-._.-="
+        "=-._.-=#=-._.-=#=-._.-=#"
+    )
+else
+    CONSOLE_GLYPHS=false
+    G_ON="●"; G_OFF="○"; G_PLAY="▶"; G_LEFT="◄"; G_RIGHT="►"
+    G_HEAVY="━"; G_ELLIPSIS="…"
+    WAVE_PATTERNS=(
+        "▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂"
+        "▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁"
+        "▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂"
+        "▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃"
+        "▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅"
+        "▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇▅▃▂▁▂▃▅▇"
+    )
+fi
 WAVE_FRAME=0
 
 STATION_BANNER_KEY=""
@@ -261,7 +285,10 @@ update_station_banner() {
     local dx=1
     local big="" font
 
-    if command -v toilet >/dev/null 2>&1; then
+    # Op die konsole: toilet se mono-fonts bestaan uit kwadrant-karakters
+    # wat die konsole-lettertipe nie het nie (gestippelde titel) - gewone
+    # vet teks.
+    if [ "$CONSOLE_GLYPHS" = false ] && command -v toilet >/dev/null 2>&1; then
         # Die skaduwee skuif die finale baniere dx kolomme wyer as wat
         # toilet self weet van - versoek dus 'n breedte wat REEDS die
         # skaduwee se ruimte in ag neem ($width - dx), sodat die
@@ -284,7 +311,7 @@ update_station_banner() {
     else
         local plain="$name"
         if [ "${#plain}" -gt "$width" ] && [ "$width" -gt 1 ]; then
-            plain="${plain:0:$((width - 1))}…"
+            plain="${plain:0:$((width - 1))}${G_ELLIPSIS}"
         fi
         STATION_BANNER_TEXT="${PRIMARY}${BOLD}${plain}${RESET}"
     fi
@@ -1029,7 +1056,7 @@ draw_toets_tab() {
 }
 
 draw_tabs_body() {
-    echo "$(compute_tab_bar)${GRAY}(◄ ► om te wissel)${RESET}"
+    echo "$(compute_tab_bar)${GRAY}(${G_LEFT} ${G_RIGHT} om te wissel)${RESET}"
     echo "$sep"
     echo
 
@@ -1079,7 +1106,7 @@ draw() {
 
     local accent_bar
     accent_bar=$(printf '%*s' "$sep_width" '')
-    accent_bar=${accent_bar// /━}
+    accent_bar=${accent_bar// /$G_HEAVY}
 
     local compact=false
     [ "$lines" -lt 20 ] && compact=true
@@ -1174,9 +1201,9 @@ draw() {
         [ "$compact" = false ] && echo "${PRIMARY}${accent_bar}${RESET}"
 
         if [ "$on_air" = true ]; then
-            echo "${BLINK}${GREEN}${BOLD}● ON AIR${RESET}"
+            echo "${BLINK}${GREEN}${BOLD}${G_ON} ON AIR${RESET}"
         else
-            echo "${RED}${BOLD}○ OFF AIR${RESET}"
+            echo "${RED}${BOLD}${G_OFF} OFF AIR${RESET}"
         fi
 
         [ "$compact" = false ] && echo
@@ -1187,7 +1214,7 @@ draw() {
         [ -n "$down_lines" ] && printf '%s\n' "$down_lines"
 
         if [ "$PLAYING" = true ]; then
-            echo "  ${GREEN}▶ Monitor speel${RESET}   $(fake_wave)"
+            echo "  ${GREEN}${G_PLAY} Monitor speel${RESET}   $(fake_wave)"
         else
             echo
         fi

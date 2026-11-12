@@ -6,8 +6,18 @@ After=network-online.target
 Type=simple
 User=radio-orania
 Environment=HOME=/opt/radio-orania
+# Liquidsoap se skrip-kas: sonder 'n skryfbare gids (HOME is root se
+# /opt/radio-orania) word die hele standaardbiblioteek by elke begin
+# opnuut getipe-kontroleer - stadiger herbegin, langer stilte op die lug.
+CacheDirectory=radio-orania
+Environment=LIQ_CACHE_USER_DIR=/var/cache/radio-orania
 Restart=always
 RestartSec=5
+# Voorrang bo die dashboard/ander prosesse op dieselfde masjien, sodat
+# 'n besige CPU nie die klankkaart laat leegloop (hik/spring) nie.
+Nice=-10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=0
 
 ExecStart=/usr/bin/liquidsoap \
   /opt/radio-orania/liquidsoap/radio.liq

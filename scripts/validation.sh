@@ -144,7 +144,15 @@ progress 80 "ALSA"
 
 if command -v aplay >/dev/null 2>&1; then
 
-    if aplay -L | grep -q "$ALSA_DEVICE"; then
+    # "aplay -L" noem kaarte by naam (hw:CARD=Intel,DEV=0), nooit as
+    # "hw:0,0" nie - kyk dus vir 'n hw:N,M-toestel in "aplay -l" se lys.
+    if [[ "$ALSA_DEVICE" =~ ^hw:([0-9]+),([0-9]+)$ ]]; then
+        alsa_found=$(aplay -l 2>/dev/null | grep -c "^card ${BASH_REMATCH[1]}:.*device ${BASH_REMATCH[2]}:" || true)
+    else
+        alsa_found=$(aplay -L 2>/dev/null | grep -cx "$ALSA_DEVICE" || true)
+    fi
+
+    if [ "$alsa_found" -gt 0 ]; then
         ok "ALSA toestel gevind ($ALSA_DEVICE)"
     else
         warn "ALSA toestel nie gevind nie ($ALSA_DEVICE)"
