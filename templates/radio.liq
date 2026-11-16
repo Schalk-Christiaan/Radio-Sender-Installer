@@ -279,9 +279,14 @@ main = normalize(main)
 # Die ALSA-uitset bepaal die klok van die hele hoofketting. Niks anders mag
 # dit ophou nie - die Icecast-monitor (indien geïnstalleer) loop daarom op
 # sy eie klok agter 'n buffer() (sien radio-icecast.liq).
+#
+# buffer_size: Liquidsoap se verstek is een raam (~0.04s), te min om
+# skeduleerder-hikkies te oorbrug - gemeet ~24 ALSA-onderlope per uur
+# (hoorbare klikke op FM). 0.5s kos net 'n halwe sekonde ekstra vertraging.
 
 output.alsa(
   device=alsa_device,
+  buffer_size=0.5,
   main
 )
 

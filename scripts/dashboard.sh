@@ -43,7 +43,10 @@ fi
 
 progress 45 "Stel beperkte toegang tot radioctl in"
 
+# !syslog/!pam_session: die dashboard roep radioctl elke paar sekondes -
+# sonder dit het sudo ~118k joernaal-reëls per dag gelog.
 cat > /etc/sudoers.d/radio-admin << 'EOF'
+Defaults:radio-admin !syslog, !pam_session
 radio-admin ALL=(root) NOPASSWD: /usr/local/bin/radioctl
 EOF
 
