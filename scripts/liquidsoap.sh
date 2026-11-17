@@ -127,6 +127,7 @@ TRIAL_DIR=$(mktemp -d)
 LIVE="/opt/radio-orania/liquidsoap"
 sed -e 's/^output\.alsa(/output.dummy(/' \
     -e '/^  device=alsa_device,$/d' \
+    -e '/^  buffer_size=/d' \
     -e '/^output\.icecast(/,/^)$/d' \
     -e "s|$LIVE/source_override|$TRIAL_DIR/source_override|" \
     -e "s|$LIVE/active_source|$TRIAL_DIR/active_source|" \
