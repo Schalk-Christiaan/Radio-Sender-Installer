@@ -9,7 +9,8 @@
 
 source /opt/radio-orania/config/environment.conf
 
-CHECK_URL="https://1.1.1.1"
+# Twee onafhanklike teikens: een wat self afgaan, laat nie die lyn "af" lyk nie.
+CHECK_URLS="https://1.1.1.1 https://8.8.8.8"
 CHECK_INTERVAL=5
 STATUS_FILE="/opt/radio-orania/network/active_network"
 
@@ -47,7 +48,11 @@ write_status() {
 iface_reachable() {
     local iface="$1"
     [ -n "$iface" ] || return 1
-    curl -fsS --max-time 3 --interface "$iface" -o /dev/null "$CHECK_URL" 2>/dev/null
+    local url
+    for url in $CHECK_URLS; do
+        curl -fsS --max-time 3 --interface "$iface" -o /dev/null "$url" 2>/dev/null && return 0
+    done
+    return 1
 }
 
 # Enige nmcli-toestel wat gekoppel is, NIE die bekende bekabelde
@@ -155,18 +160,9 @@ set_iface_metric() {
     done <<< "$routes"
 }
 
-# Die bekabelde koppelvlak (ifupdown) is altyd reeds opgestel en
-# benodig nie hierdie stap nie - net 'n NetworkManager-bestuurde
-# modem-verbinding moet eers eksplisiet geaktiveer word.
-activate_if_needed() {
-    local iface="$1"
-    [ "$iface" = "$ETH_IFACE" ] && return 0
-    local conn
-    conn=$(get_connection_for_device "$iface")
-    if [ -n "$conn" ]; then
-        nmcli connection up "$conn" >/dev/null 2>&1 || true
-    fi
-}
+# GEEN "nmcli connection up" hier nie: get_modem_device gee net 'n reeds
+# gekoppelde toestel terug, en "up" op 'n aktiewe verbinding breek dit af
+# en bou dit weer op (16-17 Nov: modem elke 5-10s afgesny, stroom weg).
 
 label_for() {
     local iface="$1"
@@ -221,7 +217,6 @@ while true; do
     if [ -z "$ACTIVE_DEV" ]; then
         write_status "Aflyn (geen bruikbare koppelvlak nie)"
     else
-        activate_if_needed "$ACTIVE_DEV"
         set_iface_metric "$ACTIVE_DEV" "$ACTIVE_METRIC"
         [ -n "$IDLE_DEV" ] && set_iface_metric "$IDLE_DEV" "$IDLE_METRIC"
         write_status "$(label_for "$ACTIVE_DEV")"

@@ -17,5 +17,7 @@ output.icecast(
   port=__ICECAST_PORT__,
   password="__ICECAST_SOURCE_PASSWORD__",
   mount="monitor",
-  buffer(main)
+  # adaptative: gewone buffer() het elke ~20 min leeggeloop (klok-drywing
+  # tussen ALSA en die monitor) en Icecast herkoppel - nou pas dit spoed aan.
+  buffer.adaptative(fallible=true, limit=1.01, averaging=120., main)
 )

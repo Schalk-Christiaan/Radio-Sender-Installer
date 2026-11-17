@@ -45,6 +45,11 @@ MODEM_ETH_IFACE=$(awk '/^iface/ && $2 != "lo" {print $2; exit}' /etc/network/int
 
 mkdir -p /etc/NetworkManager/conf.d
 
+# Ou installers het 10-gsm-only.conf ("alles behalwe gsm onbestuur")
+# gelaat. Dieselfde sleutel as hieronder - wen dit ooit, word die
+# USB-Ethernet-modem onbestuur. Verwyder.
+rm -f /etc/NetworkManager/conf.d/10-gsm-only.conf
+
 if [ -n "$MODEM_ETH_IFACE" ]; then
     cat > /etc/NetworkManager/conf.d/10-ignore-wired.conf << EOF
 [keyfile]
