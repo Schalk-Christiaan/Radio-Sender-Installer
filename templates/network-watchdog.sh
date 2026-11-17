@@ -166,21 +166,86 @@ set_iface_metric() {
 
 label_for() {
     local iface="$1"
-    if [ "$iface" = "$ETH_IFACE" ]; then
+    if [ -z "$iface" ]; then
+        echo "geen"
+    elif [ "$iface" = "$ETH_IFACE" ]; then
         echo "Ethernet"
     else
         echo "Modem"
     fi
 }
 
-current_is_primary=true
-fail_count=0
-success_count=0
+# --- Gestruktureerde netwerktoestand -----------------------------------
+#
+# NET_STATUS_FILE is die enigste plek wat sê hoe albei lyne en die modem
+# lyk (sleutel=waarde); radioctl, die beheerpaneel-skerm en notify lees
+# dit net. active_network (STATUS_FILE) bly vir ouer lesers.
+NET_STATUS_FILE="/opt/radio-orania/network/status"
 
-while true; do
+# Die rugsteunlyn word elke SECONDARY_EVERY siklusse (~30s) getoets, die
+# modem-API elke MODEM_EVERY siklusse (~60s) gelees. Elke siklus sou bloot
+# die primêre lyn se besluit vertraag wanneer die rugsteun dood is.
+SECONDARY_EVERY=6
+MODEM_EVERY=12
 
+# json_get <json> <sleutel> - die ZTE-API gee plat {"k":"v",...}; geen jq nodig nie.
+json_get() {
+    printf '%s' "$1" | grep -oP "\"$2\":\"\K[^\"]*" | head -1
+}
+
+# read_modem_info <toestel> - skryf modem_*-reëls; niks as die modem nie
+# antwoord nie.
+# ponytail: net ZTE se goform-API (geen wagwoord nie); 'n Huawei
+# HiLink-stokkie gee niks - voeg 'n tweede leser by as so een opdaag.
+read_modem_info() {
+    local dev="$1" gw json state sim rx tx
+    gw=$(find_gateway "$dev")
+    [ -n "$gw" ] || return 0
+    json=$(curl -s --max-time 3 --interface "$dev" \
+        -H "Referer: http://$gw/index.html" \
+        "http://$gw/goform/goform_get_cmd_process?isTest=false&multi_data=1&cmd=modem_main_state,network_type,network_provider,signalbar,lte_rsrp,msisdn,monthly_rx_bytes,monthly_tx_bytes" \
+        2>/dev/null)
+    case "$json" in
+        *modem_main_state*) ;;
+        *) return 0 ;;
+    esac
+
+    state=$(json_get "$json" modem_main_state)
+    case "$state" in
+        modem_init_complete)                  sim="ok" ;;
+        modem_sim_undetected|modem_undetected) sim="geen" ;;
+        modem_waitpin|modem_waitpuk)          sim="pin" ;;
+        *)                                    sim="${state:-onbekend}" ;;
+    esac
+    rx=$(json_get "$json" monthly_rx_bytes)
+    tx=$(json_get "$json" monthly_tx_bytes)
+
+    echo "modem_sim=$sim"
+    echo "modem_net=$(json_get "$json" network_type)"
+    echo "modem_provider=$(json_get "$json" network_provider)"
+    echo "modem_bars=$(json_get "$json" signalbar)"
+    echo "modem_rsrp=$(json_get "$json" lte_rsrp)"
+    echo "modem_number=$(json_get "$json" msisdn)"
+    echo "modem_month_mb=$(( (${rx:-0} + ${tx:-0}) / 1048576 ))"
+}
+
+write_net_status() {
+    local active="$1" tmp="${NET_STATUS_FILE}.tmp"
+    mkdir -p "$(dirname "$NET_STATUS_FILE")"
+    {
+        echo "active=$active"
+        echo "primary=$(label_for "$PRIMARY_DEV")"
+        echo "primary_ok=$primary_ok"
+        echo "backup=$(label_for "$SECONDARY_DEV")"
+        echo "backup_ok=$secondary_ok"
+        [ -n "$modem_lines" ] && printf '%s\n' "$modem_lines"
+        echo "updated=$(date +%s)"
+    } > "$tmp"
+    mv "$tmp" "$NET_STATUS_FILE"
+}
+
+pick_devices() {
     MODEM_DEV=$(get_modem_device)
-
     if [ "$PRIMARY_NETWORK" = "modem" ]; then
         PRIMARY_DEV="$MODEM_DEV"
         SECONDARY_DEV="$ETH_IFACE"
@@ -188,8 +253,35 @@ while true; do
         PRIMARY_DEV="$ETH_IFACE"
         SECONDARY_DEV="$MODEM_DEV"
     fi
+}
 
-    if iface_reachable "$PRIMARY_DEV"; then
+probe() {
+    if iface_reachable "$1"; then echo ja; else echo nee; fi
+}
+
+fail_count=0
+success_count=0
+cycle=0
+modem_lines=""
+
+# Begin-toestand uit 'n werklike toets, nie 'n aanname nie: anders kry
+# 'n dooie primêre lyn (bv. PRIMARY_NETWORK=modem sonder SIM) ná elke
+# herbegin al die verkeer totdat die drempel bereik is.
+pick_devices
+primary_ok=$(probe "$PRIMARY_DEV")
+secondary_ok=$(probe "$SECONDARY_DEV")
+if [ "$primary_ok" = nee ] && [ "$secondary_ok" = ja ]; then
+    current_is_primary=false
+else
+    current_is_primary=true
+fi
+
+while true; do
+
+    pick_devices
+
+    primary_ok=$(probe "$PRIMARY_DEV")
+    if [ "$primary_ok" = ja ]; then
         fail_count=0
         success_count=$((success_count + 1))
     else
@@ -197,12 +289,28 @@ while true; do
         fail_count=$((fail_count + 1))
     fi
 
+    # Die rugsteunlyn: elke siklus terwyl dit aktief is, anders elke ~30s.
+    if [ "$current_is_primary" = false ] || [ $(( cycle % SECONDARY_EVERY )) -eq 0 ]; then
+        secondary_ok=$(probe "$SECONDARY_DEV")
+    fi
+
+    if [ -n "$MODEM_DEV" ]; then
+        [ $(( cycle % MODEM_EVERY )) -eq 0 ] && modem_lines=$(read_modem_info "$MODEM_DEV")
+    else
+        modem_lines=""
+    fi
+
     # Oorskakel net wanneer die drempel bereik is - 'n enkele
     # mislukte/suksesvolle toets alleen verander niks nie, dít voorkom
-    # die heen-en-weer-"flap" by 'n wisselvallige verbinding.
-    if [ "$current_is_primary" = true ] && [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
+    # die heen-en-weer-"flap" by 'n wisselvallige verbinding. Skakel
+    # boonop net oor na 'n rugsteunlyn wat self werk ("gekoppel" is nie
+    # genoeg nie - die ZTE gee DHCP uit selfs sonder SIM), en gaan
+    # dadelik terug as die rugsteun self wegval.
+    if [ "$current_is_primary" = true ] && [ "$fail_count" -ge "$FAIL_THRESHOLD" ] &&
+       [ "$secondary_ok" = ja ]; then
         current_is_primary=false
-    elif [ "$current_is_primary" = false ] && [ "$success_count" -ge "$RECOVER_THRESHOLD" ]; then
+    elif [ "$current_is_primary" = false ] &&
+         { [ "$success_count" -ge "$RECOVER_THRESHOLD" ] || [ "$secondary_ok" = nee ]; }; then
         current_is_primary=true
     fi
 
@@ -215,13 +323,16 @@ while true; do
     fi
 
     if [ -z "$ACTIVE_DEV" ]; then
-        write_status "Aflyn (geen bruikbare koppelvlak nie)"
+        active_label="Aflyn (geen bruikbare koppelvlak nie)"
     else
         set_iface_metric "$ACTIVE_DEV" "$ACTIVE_METRIC"
         [ -n "$IDLE_DEV" ] && set_iface_metric "$IDLE_DEV" "$IDLE_METRIC"
-        write_status "$(label_for "$ACTIVE_DEV")"
+        active_label=$(label_for "$ACTIVE_DEV")
     fi
+    write_status "$active_label"
+    write_net_status "$active_label"
 
+    cycle=$((cycle + 1))
     sleep "$CHECK_INTERVAL"
 
 done

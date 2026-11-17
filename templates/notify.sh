@@ -11,6 +11,7 @@ source /opt/radio-orania/config/environment.conf
 
 ACTIVE_SOURCE_FILE="/opt/radio-orania/liquidsoap/active_source"
 ACTIVE_NETWORK_FILE="/opt/radio-orania/network/active_network"
+NET_STATUS_FILE="/opt/radio-orania/network/status"
 
 CHECK_INTERVAL=5
 
@@ -63,6 +64,12 @@ flush_queue() {
 
 read_network() {
     [ -f "$ACTIVE_NETWORK_FILE" ] && cat "$ACTIVE_NETWORK_FILE" 2>/dev/null
+}
+
+# read_backup - "ja"/"nee" uit die watchdog se statuslêer: werk die
+# rugsteunlyn self (internet daaroor), nie net "gekoppel" nie.
+read_backup() {
+    sed -n 's/^backup_ok=//p' "$NET_STATUS_FILE" 2>/dev/null
 }
 
 read_source() {
@@ -118,6 +125,20 @@ on_network_change() {
     esac
 }
 
+on_backup_change() {
+    local label sim
+    label=$(sed -n 's/^backup=//p' "$NET_STATUS_FILE" 2>/dev/null)
+    sim=$(sed -n 's/^modem_sim=//p' "$NET_STATUS_FILE" 2>/dev/null)
+    case "$1" in
+        nee)
+            local hint=""
+            [ "$label" = "Modem" ] && [ "$sim" = "geen" ] && hint=" Die modem sien geen SIM nie."
+            notify high "warning" "Rugsteunlyn (${label:-onbekend}) werk NIE - val die hooflyn nou uit, is die sender aflyn.$hint" ;;
+        ja)
+            notify default "white_check_mark" "Rugsteunlyn (${label:-onbekend}) werk weer." ;;
+    esac
+}
+
 on_source_change() {
     local new="$1" old="$2"
     case "$new" in
@@ -140,7 +161,8 @@ on_service_change() {
 reported[network]=$(read_network)
 reported[source]=$(read_source)
 reported[service]=$(read_service)
-for n in network source service; do
+reported[backup]=$(read_backup)
+for n in network source service backup; do
     candidate[$n]="${reported[$n]}"
     since[$n]=$(date +%s)
 done
@@ -148,6 +170,7 @@ done
 start_msg="Kennisgewings aktief. Diens: ${reported[service]}"
 [ -n "${reported[source]}" ] && start_msg="$start_msg, bron: ${reported[source]}"
 [ -n "${reported[network]}" ] && start_msg="$start_msg, netwerk: ${reported[network]}"
+[ "${reported[backup]}" = "nee" ] && start_msg="$start_msg, rugsteunlyn werk NIE"
 notify low "radio" "$start_msg."
 
 modem_since=""
@@ -179,6 +202,11 @@ while true; do
         else
             modem_since=""
         fi
+    fi
+
+    backup=$(read_backup)
+    if [ -n "$backup" ] && check backup "$backup"; then
+        on_backup_change "$backup"
     fi
 
     if [ -n "$modem_since" ] && [ "$MODEM_REMINDER_MINS" -gt 0 ]; then

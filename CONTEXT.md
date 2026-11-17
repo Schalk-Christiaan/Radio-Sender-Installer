@@ -36,12 +36,9 @@ The local music/sweeper fallback that plays when both the primary and (if config
 
 ## Status
 
-- 2026-11-12: Tak `pre-release` gepush (5f6c3e7 klank/installer/README-diagram, d6d1c1a environment.conf altyd na /opt). Skoon installasie in VM OK. Op die lewendige sender geïnstalleer deur Schalk (stap 3) ~12:33.
-- Klank: blank.strip buite buffer.adaptative, voorbuffer max/2, `limit=1.01`/`averaging=120.` (maks 1.02% spoed gemeet), verstekke SILENCE_THRESHOLD/STREAM_BUFFER_MAX 20. VM-harnas: scratchpad `toets/run.sh` + `toets/spoed.py`.
-- Lugvoorval 11 Nov 21:15-21:25 BEVESTIG uit sender-joernaal (~/Downloads/radio-nag.log): ou kode, stroom te stadig (catchup ~4.3s elke sekonde 19-21h, geen verbindingsfout), buffer leeg -> noodmusiek -> 1-3s later terug, 124 wissels/uur; elke wissel begin 'n nuwe noodmusiek-snit. Presies VM-fase C, wat nuwe kode oorbrug. Ook ~80 ALSA underruns/uur heelnag (ou kode) -> sterk saak vir buffer_size=0.5.
-- Oop vermoede: crossfade `fade.out` vervaag net aan die einde van 'n snit -> ou bron kan by wissel vol volume onder nuwe bly. Twee-toon-toets in VM `/tmp/xf.liq` -> `/tmp/xf.wav` gedraai, NOG NIE ontleed nie.
-- 2026-11-16: Naweek-joernaal (14-15 Nov, nuwe kode) ontleed: 15 wissels in 48h (was 124/uur), ~24 ALSA underruns/uur (was ~80). Stroomfoute = radio.co (timeouts, 1x 403/404). Sender het nog `STREAM_BUFFER_MAX=10` (ou env). Sweepers-vouer leeg -> `Fetch failed` elke reload, onskadelik. Dashboard-sudo het ~118k joernaalreëls/dag gelog.
-- Gedoen in repo: `output.alsa(buffer_size=0.5)` (`liquidsoap --check` op sender OK); sudoers `!syslog, !pam_session` vir radio-admin. Nog NIE op sender nie (lewendig) - plan: stage sonder herbegin, 06:00-herbegin tel dit op.
-- Valstrik: as `/opt/radio-orania/installer/.git` bestaan, herstel persist_installer dit na main - geen `radioctl set` tot merge nie.
-- TODO (Schalk wag eers): (a) `output.alsa(buffer_size=0.5)` teen underruns - eers 13 Nov se joernaal (nuwe kode) vergelyk: underruns/uur, wissels, catchup. (b) Crossfade-toets: VM radio-toets is 12 Nov geskrap; nuwe VM uit ~/VMs/debian-13-generic-amd64.qcow2, draai twee-toon-switch (fade.out vs onmiddellike vervaag) en meet. (c) Merge `pre-release` na main na goedkeuring.
-- Volgende: Schalk trek 13 Nov sender-logs (`netbird ssh root@100.117.206.117 'journalctl -u radio-orania --since ... --no-pager' > ~/Downloads/radio-<datum>.log`); vergelyk met ~/Downloads/radio-nag.log.
+- 2026-11-17: Op sender (main 35bda96): watchdog sonder `nmcli up` (modem is elke 5s afgesny), 2 toets-teikens, ou 10-gsm-only.conf weg, monitor buffer.adaptative, ALSA buffer_size=0.5 (proefloop-sed reggemaak). Alles werk, 0 underruns.
+- Modem (ZTE 19d2:1405, API http://192.168.0.1/goform/goform_get_cmd_process, Referer-kop, geen wagwoord): `modem_sim_undetected` sedert ~24 Mrt. Schalk moet SIM fisies nagaan.
+- Oop: NetBird bestuur /etc/resolv.conf (DNS-afhanklikheid) - net met Schalk se go op sender.
+- Argitektuurverslag (scratchpad architecture-review-20261117.html): foute (1) rugsteunlyn nooit getoets, (2) watchdog begin met aanname primêr werk, (3) "connected" != bruikbaar, (4) dashboard skraap status-teks, (5) ntfy-tou verlore by herbegin.
+- Klaar (gecommit, nog nie gepush/ontplooi nie): foute 1-4 reggemaak. Watchdog toets albei lyne, begin uit werklike toets, lees ZTE-modem, skryf `/opt/radio-orania/network/status` (sleutel=waarde); `radioctl status --kv` + `radioctl modem`; dashboard Modem-kaartjie; ntfy as rugsteunlyn afgaan. VM-getoets (6 scenario's, regte roetes). Fout 5 gelos.
+- Volgende: push + `radioctl update` op sender net met Schalk se go (herbegin watchdog en notify).

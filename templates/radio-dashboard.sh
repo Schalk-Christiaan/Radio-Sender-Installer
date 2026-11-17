@@ -340,6 +340,7 @@ update_stelsel_body() {
     STELSEL_BODY_CACHE=$(
         sudo radioctl bufferstat
         sudo radioctl datausage
+        sudo radioctl modem
         sudo radioctl sysstats | grep -v '^Skyfspasie'
     )
     STELSEL_BODY_TS="$now"
@@ -1111,37 +1112,36 @@ draw() {
     local compact=false
     [ "$lines" -lt 20 ] && compact=true
 
-    local status_raw
-    status_raw=$(sudo radioctl status --color)
+    # Masjienleesbare status (sleutel=waarde) - geen teks-ontleding van
+    # "radioctl status" meer nie, so 'n etiketverandering daar breek nie
+    # die kaartjies nie.
+    local kv
+    kv=$(sudo radioctl status --kv)
+    kv_get() { printf '%s\n' "$kv" | sed -n "s/^$1=//p" | head -1; }
 
     local station_name
-    station_name=$(printf '%s\n' "$status_raw" | sed -n 's/^.*Sender Naam.*: //p' | head -1)
+    station_name=$(kv_get station)
     [ -z "$station_name" ] && station_name="Radio Orania"
 
-    local status_body
-    status_body=$(printf '%s\n' "$status_raw" | grep -v 'Sender Naam')
-
-    # Kaartjie-waardes moet ANSI-vry wees om korrek te kan meet/opvul
-    # (draw_status_cards() voeg self kleur by via card_colors) - status_body
-    # hierbo bly wel gekleur, vir die stroom-URL-reël en "af"-status
-    # hieronder wat die kleure direk hergebruik.
-    local status_plain
-    status_plain=$(printf '%s\n' "$status_body" | sed -E 's/\x1b\[[0-9;]*m//g')
-
     local bron_val aanlyn_val skyf_val netwerk_val
-    bron_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Aktiewe Bron *: *//p' | sed 's/ (.*//')
-    [ -z "$bron_val" ] && bron_val="onbekend"
-    aanlyn_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Aanlyn *: *//p')
-    skyf_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Beskikbare skyfspasie: *//p')
-    netwerk_val=$(printf '%s\n' "$status_plain" | sed -n 's/^Netwerk *: *//p')
+    case "$(kv_get source)" in
+        primer)     bron_val="Hoofstroom" ;;
+        rugsteun)   bron_val="Rugsteun-stroom" ;;
+        noodmusiek) bron_val="Noodmusiek (plaaslik)" ;;
+        *)          bron_val="onbekend" ;;
+    esac
+    aanlyn_val=$(kv_get uptime)
+    [ -z "$aanlyn_val" ] && aanlyn_val="nie aktief nie"
+    skyf_val=$(kv_get disk_free)
+    netwerk_val=$(kv_get active)
 
     local svc_total svc_up
-    svc_total=$(printf '%s\n' "$status_plain" | grep -cE '\.(service|timer) +loop( nie)?$')
-    svc_up=$(printf '%s\n' "$status_plain" | grep -cE '\.(service|timer) +loop$')
+    svc_total=$(kv_get services_total)
+    svc_up=$(kv_get services_up)
 
     local dienste_val dienste_color
-    dienste_val="${svc_up}/${svc_total} loop"
-    if [ "$svc_total" -gt 0 ] && [ "$svc_up" -eq "$svc_total" ]; then
+    dienste_val="${svc_up:-0}/${svc_total:-0} loop"
+    if [ "${svc_total:-0}" -gt 0 ] && [ "${svc_up:-0}" -eq "$svc_total" ]; then
         dienste_color="$GREEN"
     else
         dienste_color="$RED"
@@ -1154,22 +1154,54 @@ draw() {
     # shellcheck disable=SC2034 # gebruik via naamverwysing (nameref) in draw_status_cards
     local card_colors=("" "" "$dienste_color" "")
 
-    # Netwerk-kaartjie verskyn net as modem-failover aktief is (die
-    # status-lêer bestaan dan) - op installasies daarsonder is dit
-    # eenvoudig nie relevant nie.
+    # Netwerk- en Modem-kaartjies verskyn net as modem-failover aktief is
+    # (die watchdog skryf dan die netwerkstatus).
     if [ -n "$netwerk_val" ]; then
+        local backup_ok
+        backup_ok=$(kv_get backup_ok)
         card_titles+=(Netwerk)
-        card_values+=("$netwerk_val")
         case "$netwerk_val" in
-            Ethernet) card_colors+=("$GREEN") ;;
-            Modem*)   card_colors+=("$RED") ;;
-            *)        card_colors+=("$RED") ;;
+            Ethernet|Modem)
+                # Groen net as die aktiewe lyn die primêre is EN die
+                # rugsteun werk; anders rooi sodat 'n mens dit raaksien.
+                if [ "$netwerk_val" = "$(kv_get primary)" ] && [ "$backup_ok" = ja ]; then
+                    card_values+=("$netwerk_val")
+                    card_colors+=("$GREEN")
+                elif [ "$netwerk_val" = "$(kv_get primary)" ]; then
+                    card_values+=("$netwerk_val (geen rugsteun)")
+                    card_colors+=("$RED")
+                else
+                    card_values+=("$netwerk_val (rugsteun)")
+                    card_colors+=("$RED")
+                fi
+                ;;
+            *)  card_values+=("$netwerk_val"); card_colors+=("$RED") ;;
         esac
+
+        local modem_sim
+        modem_sim=$(kv_get modem_sim)
+        if [ -n "$modem_sim" ]; then
+            card_titles+=(Modem)
+            if [ "$modem_sim" = ok ]; then
+                card_values+=("$(kv_get modem_bars)/5 $(kv_get modem_net)")
+                card_colors+=("$GREEN")
+            elif [ "$modem_sim" = geen ]; then
+                card_values+=("SIM weg")
+                card_colors+=("$RED")
+            else
+                card_values+=("SIM: $modem_sim")
+                card_colors+=("$RED")
+            fi
+        fi
     fi
 
-    local url_line down_lines
-    url_line=$(printf '%s\n' "$status_body" | grep '^Stroom URL')
-    down_lines=$(printf '%s\n' "$status_body" | grep 'loop nie')
+    local url_line="" down_lines="" stream_url svc
+    stream_url=$(kv_get stream_url)
+    [ -n "$stream_url" ] && url_line="${BOLD}Stroom URL${RESET}    : ${stream_url}"
+    while IFS= read -r svc; do
+        [ -n "$svc" ] && down_lines+=$(printf "%-28s %s" "$svc" "${RED}loop nie${RESET}")$'\n'
+    done < <(printf '%s\n' "$kv" | sed -n 's/^down=//p')
+    down_lines="${down_lines%$'\n'}"
 
     local on_air=false
     systemctl is-active --quiet radio-orania.service 2>/dev/null && on_air=true

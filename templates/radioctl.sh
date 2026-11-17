@@ -42,6 +42,70 @@ load_config() {
     fi
 }
 
+# radio_uptime - "3h 12m" vir radio-orania.service, leeg as dit nie loop nie.
+radio_uptime() {
+    systemctl is-active --quiet radio-orania.service 2>/dev/null || return 0
+    local started started_ts elapsed
+    started=$(systemctl show radio-orania.service -p ActiveEnterTimestamp --value 2>/dev/null)
+    [ -n "$started" ] && [ "$started" != "n/a" ] || return 0
+    started_ts=$(date -d "$started" +%s 2>/dev/null) || return 0
+    elapsed=$(( $(date +%s) - started_ts ))
+    echo "$(( elapsed / 3600 ))h $(( (elapsed % 3600) / 60 ))m"
+}
+
+RADIO_SERVICES="radio-orania.service filebrowser.service radio-notify.service radio-orania-restart.timer radio-network-watchdog.service"
+
+# cmd_status_kv - masjienleesbare status (sleutel=waarde) vir die
+# beheerpaneel-skerm, sodat dit nie die mens-teks hoef te ontleed nie.
+# Die netwerk-/modemreëls kom reguit uit die watchdog se statuslêer.
+cmd_status_kv() {
+    load_config
+    local up=0 total=0 svc
+    for svc in $RADIO_SERVICES; do
+        [ -f "/etc/systemd/system/$svc" ] || continue
+        total=$((total + 1))
+        if systemctl is-active --quiet "$svc" 2>/dev/null; then
+            up=$((up + 1))
+        else
+            echo "down=$svc"
+        fi
+    done
+    echo "station=${STATION_NAME:-}"
+    echo "stream_url=${STREAM_URL:-}"
+    echo "source=$(cat "$BASE_DIR/liquidsoap/active_source" 2>/dev/null)"
+    echo "uptime=$(radio_uptime)"
+    echo "services_up=$up"
+    echo "services_total=$total"
+    echo "disk_free=$(df -h "$BASE_DIR" 2>/dev/null | awk 'NR==2 {print $4}')"
+    cat "$BASE_DIR/network/status" 2>/dev/null
+}
+
+# cmd_modem - wat die watchdog laas uit die modem gelees het.
+cmd_modem() {
+    local f="$BASE_DIR/network/status"
+    if ! grep -q '^modem_' "$f" 2>/dev/null; then
+        echo "Modem         : geen data nie (nie ingeprop nie, of watchdog loop nie)"
+        return 0
+    fi
+    local sim net prov bars rsrp num mb ok
+    sim=$(sed -n 's/^modem_sim=//p' "$f");      net=$(sed -n 's/^modem_net=//p' "$f")
+    prov=$(sed -n 's/^modem_provider=//p' "$f"); bars=$(sed -n 's/^modem_bars=//p' "$f")
+    rsrp=$(sed -n 's/^modem_rsrp=//p' "$f");    num=$(sed -n 's/^modem_number=//p' "$f")
+    mb=$(sed -n 's/^modem_month_mb=//p' "$f")
+    ok=$(sed -n 's/^backup_ok=//p' "$f")
+    case "$sim" in
+        ok)   sim="ok" ;;
+        geen) sim="NIE GEVIND NIE (kyk of die SIM ingesit is)" ;;
+        pin)  sim="wag vir PIN" ;;
+    esac
+    echo "Modem SIM     : $sim"
+    echo "Netwerk       : ${prov:-?} ${net:-?}"
+    echo "Sein          : ${bars:-?}/5 balkies${rsrp:+, RSRP $rsrp dBm}"
+    echo "Nommer        : ${num:-onbekend}"
+    echo "Data dié maand: ${mb:-0} MB"
+    [ -n "$ok" ] && echo "Rugsteunlyn   : $( [ "$ok" = ja ] && echo werk || echo 'werk NIE')"
+}
+
 cmd_status() {
     load_config
 
@@ -94,25 +158,13 @@ cmd_status() {
         echo "${bold}Aktiewe Bron${reset}  : ${active_label}"
     fi
 
-    local uptime_str=""
-    if systemctl is-active --quiet radio-orania.service 2>/dev/null; then
-        local started
-        started=$(systemctl show radio-orania.service -p ActiveEnterTimestamp --value 2>/dev/null)
-        if [ -n "$started" ] && [ "$started" != "n/a" ]; then
-            local started_ts now_ts elapsed
-            started_ts=$(date -d "$started" +%s 2>/dev/null || echo "")
-            if [ -n "$started_ts" ]; then
-                now_ts=$(date +%s)
-                elapsed=$(( now_ts - started_ts ))
-                uptime_str="$(( elapsed / 3600 ))h $(( (elapsed % 3600) / 60 ))m"
-            fi
-        fi
-    fi
+    local uptime_str
+    uptime_str=$(radio_uptime)
     echo "${bold}Aanlyn${reset}        : ${uptime_str:-nie aktief nie}"
 
     echo
 
-    for svc in radio-orania.service filebrowser.service radio-notify.service radio-orania-restart.timer radio-network-watchdog.service; do
+    for svc in $RADIO_SERVICES; do
         if [ -f "/etc/systemd/system/$svc" ]; then
             if systemctl is-active --quiet "$svc" 2>/dev/null; then
                 printf "%-28s %s\n" "$svc" "${green}loop${reset}"
@@ -912,6 +964,7 @@ Gebruik: radioctl <opdrag>
   bufferstat     Wys die regstreekse netwerk-buffer van die aktiewe bron
   audio-ports    Wys elke aux-uitsetpoort met volume, demp en jack-status
   datausage      Wys data-verbruik vandag/hierdie maand (vnstat)
+  modem          Wys modem-SIM, sein, nommer en data (soos die watchdog laas gelees het)
   sysstats       Wys CPU-las, geheue, skyfspasie en CPU-temperatuur
   set <S> <W>    Verander 'n instelling ($SETTABLE_KEYS)
   wissel <T>     Wissel bron: 1, 2, musiek, of outomaties (tydelik)
@@ -935,7 +988,9 @@ EOF
 
 case "${1:-}" in
     dash)         cmd_dash ;;
-    status)       shift; cmd_status "${1:-}" ;;
+    status)       shift
+                  if [ "${1:-}" = "--kv" ]; then cmd_status_kv; else cmd_status "${1:-}"; fi ;;
+    modem)        cmd_modem ;;
     start)        cmd_start ;;
     stop)         cmd_stop ;;
     restart)      cmd_restart ;;
